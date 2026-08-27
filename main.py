@@ -21,6 +21,7 @@ from alert_store import (
     AlertNotFoundError,
     InvalidTransitionError,
 )
+from history_store import init_db as init_history_db, add_history, get_history
 
 app = FastAPI(title="JeevanSetu AI - Core Engine")
 
@@ -35,6 +36,12 @@ app.add_middleware(
 _frontend_dir = Path(__file__).resolve().parent / "frontend"
 if _frontend_dir.is_dir():
     app.mount("/frontend", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+
+
+# ─── Initialize history database on startup ─────────────────
+@app.on_event("startup")
+async def startup():
+    init_history_db()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -359,13 +366,46 @@ async def demo_scenarios():
     }
 
 
+# ─────────────────────────────────────────────────────────────
+# History endpoints (new — SQLite-backed persistence)
+# ─────────────────────────────────────────────────────────────
+
+class HistoryIn(BaseModel):
+    farmer_id: str
+    activity: str
+    risk_level: str
+    safe_window: str = ""
+    reason: str = ""
+    weather: Optional[dict] = None
+
+
+@app.post("/api/history", status_code=201)
+async def save_history(entry: HistoryIn):
+    """Save a recommendation to persistent history."""
+    record = add_history(
+        farmer_id=entry.farmer_id,
+        activity=entry.activity,
+        risk_level=entry.risk_level,
+        safe_window=entry.safe_window,
+        reason=entry.reason,
+        weather_data=entry.weather,
+    )
+    return {"ok": True, "record": record}
+
+
+@app.get("/api/history/{farmer_id}")
+async def get_farmer_history(farmer_id: str):
+    """Get recommendation history for a specific farmer."""
+    records = get_history(farmer_id)
+    return {"history": records, "count": len(records)}
+
+
 @app.get("/")
 async def root():
-    if _frontend_dir.is_dir():
-        return RedirectResponse(url="/frontend/farmer.html")
     return {"status": "JeevanSetu AI backend running"}
 
 
 @app.get("/api/health")
 async def health():
     return {"status": "JeevanSetu AI backend running"}
+
