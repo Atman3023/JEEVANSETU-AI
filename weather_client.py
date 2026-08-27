@@ -47,3 +47,4 @@ async def get_morning_readings(lat: float, lon: float) -> list[HourReading]:
                 wind_kmh=winds[i],
             ))
     return readings
+
