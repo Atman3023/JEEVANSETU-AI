@@ -61,9 +61,165 @@ except Exception:
 
 
 # ==============================================================
-# TEST 1: RED -> Automatic Alert via /api/safe-window
+# TEST 0A: DEMO RED triggers RED + PENDING_ASHA_REVIEW
 # ==============================================================
-section("TEST 1: RED -> Automatic Alert (Circuit Breaker Trigger)")
+section("TEST 0A: DEMO RED -> RED + PENDING_ASHA_REVIEW")
+
+r = requests.get(f"{BASE}/api/safe-window", params={
+    "lat": 20.2961, "lon": 85.8245,
+    "profile": "healthy_adult",
+    "activity": "general_work",
+    "farmer_name": "Demo Farmer",
+    "demo_red": "true",
+})
+test("DEMO RED returns 200", r.status_code == 200)
+data = r.json()
+test("demo_mode flag is True", data.get("demo_mode") is True)
+test("All hours are RED",
+     all(h["zone"] == "RED" for h in data["hourly"]))
+test("Reason mentions DEMO RED",
+     "DEMO RED" in data["hourly"][0]["reason"])
+test("No safe window hours", data["safe_window_hours"] == [])
+test("first_red_hour is 05:00", data["first_red_hour"] == "05:00")
+
+cb = data.get("circuit_breaker", {})
+test("Circuit breaker triggered", cb.get("triggered") is True)
+demo_alert_id = cb.get("alert_id")
+test("Alert ID returned", demo_alert_id is not None)
+test("Status = PENDING_ASHA_REVIEW", cb.get("status") == "PENDING_ASHA_REVIEW")
+
+# Verify the alert exists in the store
+if demo_alert_id:
+    ar = requests.get(f"{BASE}/api/alerts/{demo_alert_id}")
+    test("Demo alert retrievable by ID", ar.status_code == 200)
+    a = ar.json()["alert"]
+    test("Alert status = PENDING_ASHA_REVIEW", a["status"] == "PENDING_ASHA_REVIEW")
+    test("Alert risk_level = RED", a["risk_level"] == "RED")
+    test("Alert reason mentions DEMO RED", "DEMO RED" in a["reason"])
+    test("Alert has status_history", len(a["status_history"]) >= 1)
+
+
+# ==============================================================
+# TEST 0B: DEMO RED Duplicate Protection
+# ==============================================================
+section("TEST 0B: DEMO RED Duplicate Protection")
+
+r2 = requests.get(f"{BASE}/api/safe-window", params={
+    "lat": 20.2961, "lon": 85.8245,
+    "profile": "healthy_adult",
+    "activity": "general_work",
+    "farmer_name": "Demo Farmer",
+    "demo_red": "true",
+})
+test("Second DEMO RED returns 200", r2.status_code == 200)
+cb2 = r2.json().get("circuit_breaker", {})
+test("Duplicate alert NOT created (triggered=False)",
+     cb2.get("triggered") is False)
+test("Message mentions active alert exists",
+     "already exists" in cb2.get("message", "").lower())
+
+
+# ==============================================================
+# TEST 0C: DEMO RED → Full Lifecycle (validate → contact → resolve)
+# ==============================================================
+section("TEST 0C: DEMO RED Full Lifecycle")
+
+# Validate
+r = requests.patch(f"{BASE}/api/alerts/{demo_alert_id}/validate", json={
+    "notes": "DEMO: ASHA verified alert"
+})
+test("Validate returns 200", r.status_code == 200)
+alert = r.json()["alert"]
+test("Status = VALIDATED", alert["status"] == "VALIDATED")
+test("status_history has 2 entries", len(alert["status_history"]) == 2)
+
+# Contact
+r = requests.patch(f"{BASE}/api/alerts/{demo_alert_id}/contact", json={
+    "notes": "DEMO: Called farmer"
+})
+test("Contact returns 200", r.status_code == 200)
+alert = r.json()["alert"]
+test("Status = FARMER_CONTACTED", alert["status"] == "FARMER_CONTACTED")
+test("status_history has 3 entries", len(alert["status_history"]) == 3)
+
+# Resolve
+r = requests.patch(f"{BASE}/api/alerts/{demo_alert_id}/resolve", json={
+    "notes": "DEMO: Situation resolved"
+})
+test("Resolve returns 200", r.status_code == 200)
+alert = r.json()["alert"]
+test("Status = RESOLVED", alert["status"] == "RESOLVED")
+test("status_history has 4 entries", len(alert["status_history"]) == 4)
+test("Full lifecycle in status_history",
+     [h["new_status"] for h in alert["status_history"]]
+     == ["PENDING_ASHA_REVIEW", "VALIDATED", "FARMER_CONTACTED", "RESOLVED"])
+
+
+# ==============================================================
+# TEST 0D: DEMO RED → Rejection flow
+# ==============================================================
+section("TEST 0D: DEMO RED Rejection Flow")
+
+# Create a new demo alert (previous one is RESOLVED, so new one allowed)
+r = requests.get(f"{BASE}/api/safe-window", params={
+    "lat": 21.0, "lon": 86.0,
+    "profile": "elderly",
+    "activity": "general_work",
+    "farmer_name": "Demo Reject Farmer",
+    "demo_red": "true",
+})
+reject_demo_id = r.json()["circuit_breaker"]["alert_id"]
+
+# Reject
+r = requests.patch(f"{BASE}/api/alerts/{reject_demo_id}/reject", json={
+    "notes": "DEMO: False alarm"
+})
+test("Reject returns 200", r.status_code == 200)
+alert = r.json()["alert"]
+test("Status = REJECTED", alert["status"] == "REJECTED")
+
+
+# ==============================================================
+# TEST 0E: DEMO RED — Rejected → Contact returns 409
+# ==============================================================
+section("TEST 0E: DEMO RED Rejected Is Terminal")
+
+r = requests.patch(f"{BASE}/api/alerts/{reject_demo_id}/contact", json={})
+test("REJECTED → FARMER_CONTACTED blocked (409)", r.status_code == 409)
+
+r = requests.patch(f"{BASE}/api/alerts/{reject_demo_id}/validate", json={})
+test("REJECTED → VALIDATED blocked (409)", r.status_code == 409)
+
+r = requests.patch(f"{BASE}/api/alerts/{reject_demo_id}/resolve", json={})
+test("REJECTED → RESOLVED blocked (409)", r.status_code == 409)
+
+
+# ==============================================================
+# TEST 0F: demo_red=false uses real weather (not DEMO)
+# ==============================================================
+section("TEST 0F: demo_red=false Uses Real Weather")
+
+r = requests.get(f"{BASE}/api/safe-window", params={
+    "lat": 20.2961, "lon": 85.8245,
+    "profile": "healthy_adult",
+    "activity": "general_work",
+    "farmer_name": "Normal Farmer",
+    "demo_red": "false",
+})
+if r.status_code == 200:
+    data = r.json()
+    test("No demo_mode flag when demo_red=false",
+         data.get("demo_mode") is None)
+elif r.status_code == 502:
+    skip("demo_red=false real-weather test", "Weather API unavailable (502)")
+else:
+    test("demo_red=false endpoint responds", False, f"HTTP {r.status_code}")
+
+
+# ==============================================================
+# TEST 1: RED -> Automatic Alert via /api/safe-window (LIVE WEATHER)
+# ==============================================================
+section("TEST 1: RED -> Automatic Alert (Circuit Breaker Trigger) [LIVE WEATHER]")
 
 # pre_existing profile has a 32 C ceiling (rule_engine.py line 23).
 # Jaisalmer, Rajasthan is one of the hottest places in India;
