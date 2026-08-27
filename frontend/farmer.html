@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JeevanSetu AI</title>
+  <meta name="description" content="Your Safe Time to Work">
+  <meta name="theme-color" content="#2D5016">
+  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22JeevanSetu%20AI%22%2C%22short_name%22%3A%22JeevanSetu%22%2C%22start_url%22%3A%22farmer.html%22%2C%22display%22%3A%22standalone%22%2C%22theme_color%22%3A%22%232D5016%22%2C%22background_color%22%3A%22%23FAFAF5%22%7D">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{colors:{'js-bg':'#FAFAF5','js-primary':'#2D5016','js-border':'#E0DDD4','js-safe':'#3D7A1F','js-safe-bg':'#E8F5E2','js-caution':'#B8860B','js-caution-bg':'#FFF8E1','js-danger':'#C62828','js-danger-bg':'#FFEBEE'}}}}</script>
+  <script src="js/api.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/intent.js"></script>
+  <script src="js/context.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#FAFAF5;overflow-x:hidden}
+    .screen{display:none;min-height:100vh;min-height:100dvh}
+    .screen.active{display:flex;flex-direction:column}
+    .fade-in{animation:fadeIn .4s ease-out}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .pulse{animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .mic-ring{animation:micRing 1.5s infinite}
+    @keyframes micRing{0%{box-shadow:0 0 0 0 rgba(45,80,22,.4)}70%{box-shadow:0 0 0 20px rgba(45,80,22,0)}100%{box-shadow:0 0 0 0 rgba(45,80,22,0)}}
+    .timeline-bar{height:32px;display:flex;border-radius:16px;overflow:hidden}
+    .timeline-bar div{flex:1}
+    .zone-GREEN{background:#3D7A1F}
+    .zone-YELLOW{background:#B8860B}
+    .zone-RED{background:#C62828}
+    .critical-overlay{position:fixed;inset:0;z-index:100;background:rgba(198,40,40,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:24px}
+  </style>
+</head>
+<body>
+<div id="app" class="max-w-md mx-auto bg-js-bg min-h-screen min-h-[100dvh] shadow-lg border-x border-js-border relative">
+
+<!-- ══════════ SCREEN 1: SPLASH ══════════ -->
+<div id="screen-splash" class="screen active items-center justify-center bg-js-primary text-white p-8">
+  <div class="text-center fade-in">
+    <div class="text-6xl mb-4">🌾</div>
+    <h1 class="text-4xl font-black tracking-tight">JeevanSetu AI</h1>
+    <p class="text-lg mt-3 opacity-90">Your Safe Time to Work</p>
+    <p class="text-sm mt-1 opacity-70">आपका सुरक्षित काम का समय</p>
+    <div class="mt-8"><div class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 2: LANGUAGE ══════════ -->
+<div id="screen-language" class="screen items-center justify-center p-8">
+  <div class="w-full max-w-sm fade-in text-center">
+    <div class="text-5xl mb-4">🗣️</div>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">Choose Language</h2>
+    <p class="text-gray-500 mb-8">भाषा चुनें · ଭାଷା ବାଛନ୍ତୁ</p>
+    <div class="space-y-3">
+      <button onclick="selectLanguage('en')" class="w-full p-5 bg-white border-2 border-js-border rounded-2xl text-xl font-semibold text-gray-900 hover:border-js-primary active:scale-[.98] transition">🇬🇧 English</button>
+      <button onclick="selectLanguage('hi')" class="w-full p-5 bg-white border-2 border-js-border rounded-2xl text-xl font-semibold text-gray-900 hover:border-js-primary active:scale-[.98] transition">🇮🇳 हिन्दी</button>
+      <button onclick="selectLanguage('od')" class="w-full p-5 bg-white border-2 border-js-border rounded-2xl text-xl font-semibold text-gray-900 hover:border-js-primary active:scale-[.98] transition">🇮🇳 ଓଡ଼ିଆ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 3: VOICE CONSENT ══════════ -->
+<div id="screen-consent" class="screen items-center justify-center p-8">
+  <div class="w-full max-w-sm fade-in text-center">
+    <div class="text-5xl mb-4">🔒</div>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2" data-t="consentTitle">Voice & Data Consent</h2>
+    <div class="bg-white border border-js-border rounded-2xl p-6 text-left mt-4 space-y-3 text-sm text-gray-700">
+      <p data-t="consentP1">JeevanSetu AI uses voice input to understand your work queries. Your voice data is processed locally in your browser.</p>
+      <p data-t="consentP2">Your profile and health information is stored only on this device and sent to the safety engine only when you request a check.</p>
+      <p data-t="consentP3">Prototype privacy architecture aligned with DPDP principles.</p>
+      <p class="text-xs text-gray-400" data-t="consentP4">You can delete all your data anytime from Profile Settings.</p>
+    </div>
+    <button id="btn-play-consent" onclick="playConsent()" class="mt-4 px-6 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-700">🔊 <span data-t="listenConsent">Listen to consent</span></button>
+    <button onclick="giveConsent()" class="w-full mt-6 p-4 bg-js-primary text-white text-lg font-bold rounded-2xl active:scale-[.98] transition" data-t="agreeBtn">I Agree & Continue</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 4: FARMER PROFILE ══════════ -->
+<div id="screen-profile" class="screen p-6">
+  <div class="fade-in flex-1">
+    <h2 class="text-2xl font-bold text-gray-900 mb-1" data-t="profileTitle">Create Your Profile</h2>
+    <p class="text-sm text-gray-500 mb-6" data-t="profileSub">This helps us give personalized safety advice</p>
+
+    <label class="block text-sm font-semibold text-gray-700 mb-1" data-t="nameLabel">Your Name</label>
+    <input id="inp-name" type="text" placeholder="Enter name" class="w-full p-4 bg-white border border-js-border rounded-xl text-lg mb-4" value="Farmer">
+
+    <label class="block text-sm font-semibold text-gray-700 mb-1" data-t="ageLabel">Age Group</label>
+    <select id="inp-age" class="w-full p-4 bg-white border border-js-border rounded-xl text-lg mb-4">
+      <option value="18-35">18-35</option><option value="36-50" selected>36-50</option><option value="51-65">51-65</option><option value="65+">65+</option>
+    </select>
+
+    <label class="block text-sm font-semibold text-gray-700 mb-1" data-t="locationLabel">Location</label>
+    <div class="flex gap-2 mb-1">
+      <button onclick="useGPS()" class="flex-1 p-3 bg-white border border-js-border rounded-xl text-sm font-medium">📍 <span data-t="useGPS">Use GPS</span></button>
+    </div>
+    <select id="inp-location" class="w-full p-4 bg-white border border-js-border rounded-xl text-lg mb-4" onchange="selectPresetLocation(this.value)">
+      <option value="">Select location...</option>
+      <option value="bhubaneswar">Bhubaneswar, Odisha</option>
+      <option value="jaisalmer">Jaisalmer, Rajasthan</option>
+      <option value="varanasi">Varanasi, UP</option>
+      <option value="nagpur">Nagpur, Maharashtra</option>
+      <option value="chennai">Chennai, Tamil Nadu</option>
+    </select>
+
+    <label class="block text-sm font-semibold text-gray-700 mb-1" data-t="cropLabel">Primary Crop</label>
+    <select id="inp-crop" class="w-full p-4 bg-white border border-js-border rounded-xl text-lg mb-4">
+      <option value="rice">🌾 Rice / धान</option><option value="wheat">🌾 Wheat / गेहूं</option><option value="cotton">🏵️ Cotton / कपास</option><option value="sugarcane">🎋 Sugarcane / गन्ना</option><option value="vegetables">🥬 Vegetables / सब्जी</option>
+    </select>
+
+    <label class="block text-sm font-semibold text-gray-700 mb-2" data-t="healthLabel">Health Profile</label>
+    <div class="grid grid-cols-2 gap-3 mb-6" id="health-grid">
+      <button onclick="selectHealth('healthy_adult')" class="health-btn p-3 rounded-xl border-2 border-js-primary bg-js-safe-bg/30 text-left" data-hp="healthy_adult">
+        <div class="text-2xl mb-1">💪</div><div class="font-semibold text-sm text-gray-900" data-t="hpHealthy">Healthy Adult</div>
+        <div class="text-[10px] text-gray-500" data-t="hpHealthySub">Higher heat tolerance</div>
+      </button>
+      <button onclick="selectHealth('pregnant')" class="health-btn p-3 rounded-xl border border-js-border bg-white text-left" data-hp="pregnant">
+        <div class="text-2xl mb-1">🤰</div><div class="font-semibold text-sm text-gray-900" data-t="hpPregnant">Pregnant</div>
+        <div class="text-[10px] text-gray-500" data-t="hpPregnantSub">Extra care needed</div>
+      </button>
+      <button onclick="selectHealth('elderly')" class="health-btn p-3 rounded-xl border border-js-border bg-white text-left" data-hp="elderly">
+        <div class="text-2xl mb-1">👴</div><div class="font-semibold text-sm text-gray-900" data-t="hpElderly">Elderly (65+)</div>
+        <div class="text-[10px] text-gray-500" data-t="hpElderlySub">Lower heat tolerance</div>
+      </button>
+      <button onclick="selectHealth('pre_existing')" class="health-btn p-3 rounded-xl border border-js-border bg-white text-left" data-hp="pre_existing">
+        <div class="text-2xl mb-1">❤️‍🩹</div><div class="font-semibold text-sm text-gray-900" data-t="hpPreExisting">Pre-existing</div>
+        <div class="text-[10px] text-gray-500" data-t="hpPreExistingSub">Lowest heat tolerance</div>
+      </button>
+    </div>
+
+    <button onclick="saveProfile()" class="w-full p-4 bg-js-primary text-white text-lg font-bold rounded-2xl active:scale-[.98] transition" data-t="saveProfile">Save & Continue</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 5: HOME DASHBOARD ══════════ -->
+<div id="screen-home" class="screen">
+  <!-- Header -->
+  <header class="bg-white border-b border-js-border p-4 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+    <div class="flex items-center gap-2">
+      <span class="text-js-primary font-bold text-xl">JeevanSetu</span>
+      <span id="online-dot" class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showScreen('screen-demo')" class="text-[10px] px-2 py-1 bg-gray-100 rounded font-medium text-gray-600">Demo</button>
+      <a href="asha.html" class="text-[10px] text-js-primary underline font-medium">ASHA</a>
+      <button onclick="cycleLang()" id="btn-lang" class="border border-js-primary text-js-primary px-2 py-1 rounded text-xs font-bold">EN</button>
+    </div>
+  </header>
+
+  <!-- Offline banner -->
+  <div id="offline-banner" class="hidden bg-js-caution-bg text-js-caution p-2 text-center text-sm font-medium border-b border-js-caution">
+    ⚠️ <span data-t="offlineMsg">OFFLINE — Showing last available data</span>
+    <span id="offline-time" class="text-xs"></span>
+  </div>
+
+  <main class="p-4 flex-1 space-y-4 pb-24">
+    <!-- Greeting -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900"><span id="greeting">Good morning</span>,</h1>
+      <p class="text-xl text-gray-600" id="home-farmer-name">Farmer</p>
+    </div>
+
+    <!-- Current Status Card -->
+    <div id="home-status-card" class="rounded-2xl p-5 border-2 text-center shadow-sm bg-js-safe-bg border-js-safe">
+      <div class="text-5xl mb-2" id="home-status-icon">✅</div>
+      <div class="text-2xl font-black" id="home-status-label">—</div>
+      <div class="text-sm font-medium opacity-80 mt-1" id="home-status-sub" data-t="tapToCheck">Tap ASK to check safety</div>
+    </div>
+
+    <!-- Weather Cards -->
+    <div id="weather-cards" class="grid grid-cols-3 gap-2">
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+        <div class="text-xl mb-1">🌡️</div>
+        <div class="text-[10px] text-gray-500 font-medium" data-t="temp">Temperature</div>
+        <div class="font-bold text-gray-900" id="w-temp">--°C</div>
+      </div>
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+        <div class="text-xl mb-1">💧</div>
+        <div class="text-[10px] text-gray-500 font-medium" data-t="hum">Humidity</div>
+        <div class="font-bold text-gray-900" id="w-hum">--%</div>
+      </div>
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+        <div class="text-xl mb-1">💨</div>
+        <div class="text-[10px] text-gray-500 font-medium" data-t="wind">Wind</div>
+        <div class="font-bold text-gray-900" id="w-wind">-- km/h</div>
+      </div>
+    </div>
+
+    <!-- Safe Window Summary -->
+    <div id="home-window-card" class="hidden bg-white p-4 rounded-xl border border-js-border shadow-sm">
+      <h3 class="font-bold text-gray-900 mb-2" data-t="safeWindow">Safe Working Window</h3>
+      <div id="home-timeline" class="timeline-bar mb-2"></div>
+      <div class="flex justify-between text-xs text-gray-500 px-1 mb-2"><span id="tl-start">05:00</span><span id="tl-mid">07:00</span><span id="tl-end">10:00</span></div>
+      <div class="bg-gray-50 p-2 rounded-lg text-sm font-semibold text-gray-800 text-center" id="home-window-summary"></div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-3 gap-2">
+      <button onclick="showScreen('screen-window')" class="p-3 bg-white rounded-xl border border-js-border text-center active:scale-95 transition">
+        <div class="text-xl">📊</div><div class="text-[10px] font-medium text-gray-600 mt-1" data-t="navWindow">Safe Window</div>
+      </button>
+      <button onclick="showScreen('screen-history')" class="p-3 bg-white rounded-xl border border-js-border text-center active:scale-95 transition">
+        <div class="text-xl">📋</div><div class="text-[10px] font-medium text-gray-600 mt-1" data-t="navHistory">History</div>
+      </button>
+      <button onclick="showScreen('screen-settings')" class="p-3 bg-white rounded-xl border border-js-border text-center active:scale-95 transition">
+        <div class="text-xl">⚙️</div><div class="text-[10px] font-medium text-gray-600 mt-1" data-t="navProfile">Profile</div>
+      </button>
+    </div>
+  </main>
+
+  <!-- ASK Button -->
+  <div class="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+    <div class="max-w-md mx-auto p-4 pointer-events-auto">
+      <button onclick="showScreen('screen-voice')" class="w-full p-5 bg-js-primary text-white text-xl font-bold rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-[.97] transition">
+        🎤 <span data-t="askBtn">ASK JeevanSetu</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 6: VOICE INTERACTION ══════════ -->
+<div id="screen-voice" class="screen items-center justify-center p-6">
+  <div class="w-full max-w-sm text-center fade-in">
+    <button onclick="showScreen('screen-home')" class="absolute top-4 left-4 text-gray-500 text-2xl">←</button>
+    <h2 class="text-xl font-bold text-gray-900 mb-6" data-t="askTitle">Ask JeevanSetu</h2>
+
+    <!-- Mic button -->
+    <button id="mic-btn" onclick="startVoice()" class="w-28 h-28 rounded-full bg-js-primary text-white text-5xl mx-auto flex items-center justify-center shadow-xl active:scale-90 transition mb-4">🎤</button>
+    <p id="voice-state" class="text-sm text-gray-500 mb-4" data-t="tapToSpeak">Tap to speak</p>
+    <p id="voice-transcript" class="text-lg font-semibold text-gray-900 min-h-[28px]"></p>
+
+    <!-- Text fallback -->
+    <div class="mt-6 w-full">
+      <div class="flex gap-2">
+        <input id="text-input" type="text" placeholder="Type your question..." class="flex-1 p-4 border border-js-border rounded-xl text-base" data-t-placeholder="typePlaceholder">
+        <button onclick="submitText()" class="px-6 py-4 bg-js-primary text-white font-bold rounded-xl">→</button>
+      </div>
+    </div>
+
+    <!-- Demo shortcuts -->
+    <div class="mt-6 space-y-2">
+      <p class="text-xs text-gray-400 font-medium" data-t="tryAsking">Try asking:</p>
+      <div class="flex flex-wrap gap-2 justify-center" id="demo-phrases">
+        <button onclick="submitPhrase('spray pesticide today')" class="px-3 py-2 bg-gray-100 rounded-full text-xs font-medium text-gray-700 active:bg-gray-200">"spray pesticide today"</button>
+        <button onclick="submitPhrase('is it safe to work')" class="px-3 py-2 bg-gray-100 rounded-full text-xs font-medium text-gray-700 active:bg-gray-200">"is it safe to work"</button>
+        <button onclick="submitPhrase('when can I work')" class="px-3 py-2 bg-gray-100 rounded-full text-xs font-medium text-gray-700 active:bg-gray-200">"when can I work"</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 7: PROCESSING ══════════ -->
+<div id="screen-processing" class="screen items-center justify-center p-8">
+  <div class="text-center fade-in">
+    <div class="w-16 h-16 border-4 border-js-primary/20 border-t-js-primary rounded-full animate-spin mx-auto mb-6"></div>
+    <p id="proc-step" class="text-lg font-semibold text-gray-900" data-t="analyzing">Analyzing safety conditions...</p>
+    <p class="text-sm text-gray-500 mt-2" id="proc-detail"></p>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 8: SAFETY RESULT ══════════ -->
+<div id="screen-result" class="screen p-4 pb-24">
+  <div class="fade-in flex-1">
+    <button onclick="showScreen('screen-home')" class="text-gray-500 text-lg mb-3">← <span data-t="back">Back</span></button>
+
+    <!-- Status -->
+    <div id="result-card" class="rounded-2xl p-6 border-2 text-center shadow-sm mb-4">
+      <div class="text-6xl mb-3" id="res-icon"></div>
+      <h2 class="text-3xl font-black mb-1" id="res-label"></h2>
+      <p class="font-medium opacity-90" id="res-sub"></p>
+      <button onclick="speakResult()" class="mt-3 mx-auto flex items-center gap-2 bg-white/50 px-4 py-2 rounded-full text-sm font-semibold">🔊 <span data-t="readAloud">Read aloud</span></button>
+    </div>
+
+    <!-- Weather -->
+    <div id="res-weather" class="grid grid-cols-3 gap-2 mb-4"></div>
+
+    <!-- Reason -->
+    <div class="bg-white p-4 rounded-xl border border-js-border shadow-sm mb-4">
+      <h3 class="font-bold text-gray-900 mb-1" data-t="reason">Reason</h3>
+      <p class="text-sm text-gray-700" id="res-reason"></p>
+    </div>
+
+    <!-- Safe Window -->
+    <div class="bg-white p-4 rounded-xl border border-js-border shadow-sm mb-4">
+      <h3 class="font-bold text-gray-900 mb-2" data-t="safeWindow">Safe Working Window</h3>
+      <div id="res-timeline" class="timeline-bar mb-2"></div>
+      <div class="flex justify-between text-xs text-gray-500 px-1 mb-2" id="res-tl-labels"></div>
+      <div class="bg-gray-50 p-2 rounded-lg text-sm font-semibold text-gray-800 text-center" id="res-window-summary"></div>
+    </div>
+
+    <!-- Hourly detail -->
+    <details class="bg-white rounded-xl border border-js-border shadow-sm mb-4">
+      <summary class="font-semibold text-gray-800 p-4 cursor-pointer" data-t="whyThis">Why am I seeing this?</summary>
+      <div class="p-4 space-y-2 border-t border-js-border" id="res-hourly"></div>
+    </details>
+
+    <!-- Alert section (RED only) -->
+    <div id="res-alert-section" class="hidden bg-js-danger-bg p-4 rounded-xl border border-js-danger shadow-sm mb-4">
+      <h3 class="font-bold text-js-danger flex items-center gap-2">⚠️ <span data-t="unsafeDetected">Unsafe conditions detected</span></h3>
+      <p class="text-sm text-js-danger/80 mt-1" id="res-alert-msg"></p>
+    </div>
+
+    <button onclick="checkAgain()" class="w-full py-4 text-js-primary font-bold bg-white border border-js-primary rounded-xl" data-t="checkAgain">Check Again</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 9: SAFE WORKING WINDOW ══════════ -->
+<div id="screen-window" class="screen p-4">
+  <div class="fade-in flex-1">
+    <button onclick="showScreen('screen-home')" class="text-gray-500 text-lg mb-3">← <span data-t="back">Back</span></button>
+    <h2 class="text-xl font-bold text-gray-900 mb-4" data-t="safeWindowTitle">Safe Working Window</h2>
+
+    <!-- Activity selector -->
+    <div class="flex gap-2 mb-4">
+      <button id="win-act-general" onclick="setWindowActivity('general_work')" class="flex-1 p-3 rounded-xl border-2 border-js-primary bg-js-safe-bg/30 font-semibold text-sm text-center">🌾 <span data-t="generalWork">General Work</span></button>
+      <button id="win-act-pesticide" onclick="setWindowActivity('pesticide_spraying')" class="flex-1 p-3 rounded-xl border border-js-border bg-white font-semibold text-sm text-center">🧪 <span data-t="pesticideSpraying">Pesticide</span></button>
+    </div>
+
+    <!-- Health profile selector -->
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-500 mb-1 block" data-t="changeProfile">Health Profile (change to see recalculation)</label>
+      <select id="win-profile" onchange="recalcWindow()" class="w-full p-3 bg-white border border-js-border rounded-xl text-sm">
+        <option value="healthy_adult">💪 Healthy Adult</option>
+        <option value="pregnant">🤰 Pregnant</option>
+        <option value="elderly">👴 Elderly (65+)</option>
+        <option value="pre_existing">❤️‍🩹 Pre-existing Condition</option>
+      </select>
+    </div>
+
+    <div id="window-result" class="space-y-4"></div>
+    <div id="window-loading" class="hidden text-center py-12">
+      <div class="w-10 h-10 border-4 border-js-primary/20 border-t-js-primary rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-sm text-gray-500" data-t="calculating">Calculating...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 10: CRITICAL ALERT ══════════ -->
+<div id="screen-critical" class="screen">
+  <div class="critical-overlay fade-in">
+    <div class="text-7xl mb-6">🛑</div>
+    <h1 class="text-4xl font-black mb-2">CRITICAL</h1>
+    <h2 class="text-2xl font-bold mb-4" data-t="stopActivity">STOP ACTIVITY</h2>
+    <div class="bg-white/15 rounded-xl p-4 max-w-xs w-full mb-6">
+      <p class="text-sm opacity-90 mb-1" data-t="reason">Reason:</p>
+      <p class="font-semibold" id="critical-reason"></p>
+    </div>
+    <div class="bg-white/20 rounded-xl p-3 max-w-xs w-full mb-8">
+      <p class="text-sm font-medium">👩‍⚕️ <span data-t="ashaNotified">ASHA worker has been notified</span></p>
+    </div>
+    <button onclick="dismissCritical()" class="px-8 py-4 bg-white text-js-danger font-bold rounded-xl text-lg active:scale-95 transition" data-t="understood">I Understand</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 11: HISTORY ══════════ -->
+<div id="screen-history" class="screen p-4">
+  <div class="fade-in flex-1">
+    <button onclick="showScreen('screen-home')" class="text-gray-500 text-lg mb-3">← <span data-t="back">Back</span></button>
+    <h2 class="text-xl font-bold text-gray-900 mb-4" data-t="historyTitle">Recommendation History</h2>
+    <div id="history-list" class="space-y-3"></div>
+    <div id="history-empty" class="hidden text-center py-12 text-gray-400">
+      <div class="text-4xl mb-2">📋</div>
+      <p data-t="noHistory">No history yet</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN 12: PROFILE SETTINGS ══════════ -->
+<div id="screen-settings" class="screen p-4">
+  <div class="fade-in flex-1">
+    <button onclick="showScreen('screen-home')" class="text-gray-500 text-lg mb-3">← <span data-t="back">Back</span></button>
+    <h2 class="text-xl font-bold text-gray-900 mb-4" data-t="profileSettings">Profile Settings</h2>
+
+    <div class="bg-white rounded-xl border border-js-border p-4 space-y-3 mb-4">
+      <div><span class="text-xs text-gray-500" data-t="nameLabel">Name</span><p class="font-semibold" id="set-name"></p></div>
+      <div><span class="text-xs text-gray-500" data-t="healthLabel">Health Profile</span><p class="font-semibold" id="set-health"></p></div>
+      <div><span class="text-xs text-gray-500" data-t="locationLabel">Location</span><p class="font-semibold" id="set-location"></p></div>
+      <div><span class="text-xs text-gray-500" data-t="langLabel">Language</span><p class="font-semibold" id="set-lang"></p></div>
+    </div>
+
+    <button onclick="showScreen('screen-profile')" class="w-full p-3 bg-white border border-js-border rounded-xl font-semibold text-gray-700 mb-3" data-t="editProfile">Edit Profile</button>
+    <button onclick="showScreen('screen-language')" class="w-full p-3 bg-white border border-js-border rounded-xl font-semibold text-gray-700 mb-3" data-t="changeLang">Change Language</button>
+
+    <div class="mt-8 p-4 bg-js-danger-bg rounded-xl border border-js-danger/30">
+      <p class="text-sm text-js-danger font-semibold mb-2" data-t="privacyZone">Privacy & Data</p>
+      <p class="text-xs text-gray-600 mb-3" data-t="privacyDesc">Delete all your data from this device. This cannot be undone.</p>
+      <button onclick="deleteAllData()" class="w-full p-3 bg-js-danger text-white font-bold rounded-xl" data-t="deleteAll">Delete All My Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: DEMO MODE ══════════ -->
+<div id="screen-demo" class="screen p-4">
+  <div class="fade-in flex-1">
+    <button onclick="showScreen('screen-home')" class="text-gray-500 text-lg mb-3">← Back</button>
+    <h2 class="text-xl font-bold text-gray-900 mb-2">Demo Scenarios</h2>
+    <p class="text-sm text-gray-500 mb-4">Each scenario goes through the full backend rule engine</p>
+    <div class="space-y-3" id="demo-list"></div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════════════════
+const api = new JeevanSetuAPI();
+const storage = new JeevanSetuStorage();
+const voiceIn = new VoiceInputService();
+const voiceOut = new VoiceOutputService();
+const intentMapper = new IntentMapper();
+const ctx = new ContextEngine();
+
+let state = {
+  lang: 'en',
+  profile: null,  // {name, age_group, health_profile, location:{lat,lon,name}, crop}
+  currentResult: null,
+  currentWeather: null,
+  windowActivity: 'general_work',
+};
+
+const LOCATIONS = {
+  bhubaneswar: {lat:20.2961,lon:85.8245,name:'Bhubaneswar'},
+  jaisalmer: {lat:26.9124,lon:70.9120,name:'Jaisalmer'},
+  varanasi: {lat:25.3176,lon:82.9739,name:'Varanasi'},
+  nagpur: {lat:21.1458,lon:79.0882,name:'Nagpur'},
+  chennai: {lat:13.0827,lon:80.2707,name:'Chennai'},
+};
+
+// ═══════════════════════════════════════════════════════════
+// TRANSLATIONS
+// ═══════════════════════════════════════════════════════════
+const T = {
+  en:{consentTitle:'Voice & Data Consent',consentP1:'JeevanSetu AI uses voice input to understand your work queries. Your voice data is processed locally in your browser.',consentP2:'Your profile and health information is stored only on this device.',consentP3:'Prototype privacy architecture aligned with DPDP principles.',consentP4:'You can delete all your data anytime from Profile Settings.',listenConsent:'Listen to consent',agreeBtn:'I Agree & Continue',profileTitle:'Create Your Profile',profileSub:'This helps us give personalized safety advice',nameLabel:'Your Name',ageLabel:'Age Group',locationLabel:'Location',useGPS:'Use GPS',cropLabel:'Primary Crop',healthLabel:'Health Profile',hpHealthy:'Healthy Adult',hpHealthySub:'Higher heat tolerance',hpPregnant:'Pregnant',hpPregnantSub:'Extra care needed',hpElderly:'Elderly (65+)',hpElderlySub:'Lower heat tolerance',hpPreExisting:'Pre-existing',hpPreExistingSub:'Lowest heat tolerance',saveProfile:'Save & Continue',offlineMsg:'OFFLINE — Showing last available data',tapToCheck:'Tap ASK to check safety',temp:'Temperature',hum:'Humidity',wind:'Wind',safeWindow:'Safe Working Window',navWindow:'Safe Window',navHistory:'History',navProfile:'Profile',askBtn:'ASK JeevanSetu',askTitle:'Ask JeevanSetu',tapToSpeak:'Tap to speak',typePlaceholder:'Type your question...',tryAsking:'Try asking:',analyzing:'Analyzing safety conditions...',back:'Back',reason:'Reason',whyThis:'Why am I seeing this?',unsafeDetected:'Unsafe conditions detected',checkAgain:'Check Again',readAloud:'Read aloud',safeWindowTitle:'Safe Working Window',generalWork:'General Work',pesticideSpraying:'Pesticide',changeProfile:'Health Profile (change to see recalculation)',calculating:'Calculating...',stopActivity:'STOP ACTIVITY',ashaNotified:'ASHA worker has been notified',understood:'I Understand',historyTitle:'Recommendation History',noHistory:'No history yet',profileSettings:'Profile Settings',editProfile:'Edit Profile',changeLang:'Change Language',privacyZone:'Privacy & Data',privacyDesc:'Delete all your data from this device.',deleteAll:'Delete All My Data',langLabel:'Language',safe:'SAFE',safeDesc:'Conditions are within safe limits',caution:'CAUTION',cautionDesc:'Take extra precautions',unsafe:'UNSAFE',unsafeDesc:'Avoid outdoor work',greeting_m:'Good morning',greeting_a:'Good afternoon',greeting_e:'Good evening'},
+  hi:{consentTitle:'वॉइस और डेटा सहमति',consentP1:'जीवनसेतु AI आपके काम के सवालों को समझने के लिए वॉइस इनपुट का उपयोग करता है।',consentP2:'आपकी प्रोफ़ाइल और स्वास्थ्य जानकारी केवल इस डिवाइस पर संग्रहीत है।',consentP3:'DPDP सिद्धांतों के अनुरूप प्रोटोटाइप गोपनीयता आर्किटेक्चर।',consentP4:'आप प्रोफ़ाइल सेटिंग्स से किसी भी समय अपना सारा डेटा हटा सकते हैं।',listenConsent:'सहमति सुनें',agreeBtn:'मैं सहमत हूं',profileTitle:'अपनी प्रोफ़ाइल बनाएं',profileSub:'यह व्यक्तिगत सुरक्षा सलाह देने में मदद करता है',nameLabel:'आपका नाम',ageLabel:'आयु वर्ग',locationLabel:'स्थान',useGPS:'GPS उपयोग करें',cropLabel:'मुख्य फसल',healthLabel:'स्वास्थ्य प्रोफ़ाइल',hpHealthy:'स्वस्थ वयस्क',hpHealthySub:'अधिक गर्मी सहनशीलता',hpPregnant:'गर्भवती',hpPregnantSub:'अतिरिक्त देखभाल',hpElderly:'बुज़ुर्ग (65+)',hpElderlySub:'कम गर्मी सहनशीलता',hpPreExisting:'पहले से बीमारी',hpPreExistingSub:'सबसे कम सहनशीलता',saveProfile:'सहेजें और आगे बढ़ें',offlineMsg:'ऑफ़लाइन — अंतिम उपलब्ध डेटा दिखा रहा है',tapToCheck:'सुरक्षा जाँचने के लिए ASK दबाएं',temp:'तापमान',hum:'नमी',wind:'हवा',safeWindow:'सुरक्षित कार्य समय',navWindow:'सुरक्षित समय',navHistory:'इतिहास',navProfile:'प्रोफ़ाइल',askBtn:'JeevanSetu से पूछें',askTitle:'JeevanSetu से पूछें',tapToSpeak:'बोलने के लिए दबाएं',typePlaceholder:'अपना सवाल लिखें...',tryAsking:'ये पूछें:',analyzing:'सुरक्षा की जाँच हो रही है...',back:'वापस',reason:'कारण',whyThis:'यह क्यों दिख रहा है?',unsafeDetected:'असुरक्षित स्थिति',checkAgain:'फिर से जाँचें',readAloud:'सुनें',safeWindowTitle:'सुरक्षित कार्य समय',generalWork:'सामान्य काम',pesticideSpraying:'कीटनाशक',changeProfile:'स्वास्थ्य प्रोफ़ाइल बदलें',calculating:'गणना हो रही है...',stopActivity:'काम बंद करें',ashaNotified:'ASHA कार्यकर्ता को सूचित किया गया',understood:'मैं समझता/समझती हूं',historyTitle:'सलाह का इतिहास',noHistory:'कोई इतिहास नहीं',profileSettings:'प्रोफ़ाइल सेटिंग',editProfile:'प्रोफ़ाइल संपादित करें',changeLang:'भाषा बदलें',privacyZone:'गोपनीयता और डेटा',privacyDesc:'इस डिवाइस से अपना सारा डेटा हटाएं।',deleteAll:'सारा डेटा हटाएं',langLabel:'भाषा',safe:'सुरक्षित',safeDesc:'स्थितियां सुरक्षित सीमा में हैं',caution:'सावधानी',cautionDesc:'अतिरिक्त सावधानी बरतें',unsafe:'असुरक्षित',unsafeDesc:'बाहरी काम से बचें',greeting_m:'सुप्रभात',greeting_a:'नमस्ते',greeting_e:'शुभ संध्या'},
+  od:{consentTitle:'ଭଏସ୍ ଓ ଡାଟା ସମ୍ମତି',consentP1:'ଜୀବନସେତୁ AI ଆପଣଙ୍କ କାମ ବିଷୟରେ ବୁଝିବା ପାଇଁ ଭଏସ୍ ଇନପୁଟ୍ ବ୍ୟବହାର କରେ।',consentP2:'ଆପଣଙ୍କ ପ୍ରୋଫାଇଲ୍ କେବଳ ଏହି ଡିଭାଇସରେ ସଂରକ୍ଷିତ।',consentP3:'DPDP ସିଦ୍ଧାନ୍ତ ଅନୁସାରେ ପ୍ରୋଟୋଟାଇପ୍ ଗୋପନୀୟତା।',consentP4:'ପ୍ରୋଫାଇଲ୍ ସେଟିଂସ୍ ରୁ ଯେ କୌଣସି ସମୟରେ ଡାଟା ଡିଲିଟ୍ କରିପାରିବେ।',listenConsent:'ସମ୍ମତି ଶୁଣନ୍ତୁ',agreeBtn:'ମୁଁ ସହମତ',profileTitle:'ପ୍ରୋଫାଇଲ୍ ତିଆରି କରନ୍ତୁ',profileSub:'ବ୍ୟକ୍ତିଗତ ସୁରକ୍ଷା ସଲାହ ପାଇଁ',nameLabel:'ଆପଣଙ୍କ ନାମ',ageLabel:'ବୟସ ବର୍ଗ',locationLabel:'ସ୍ଥାନ',useGPS:'GPS ବ୍ୟବହାର',cropLabel:'ମୁଖ୍ୟ ଫସଲ',healthLabel:'ସ୍ୱାସ୍ଥ୍ୟ ପ୍ରୋଫାଇଲ୍',hpHealthy:'ସୁସ୍ଥ ବୟସ୍କ',hpHealthySub:'ଅଧିକ ଗରମ ସହନଶୀଳ',hpPregnant:'ଗର୍ଭବତୀ',hpPregnantSub:'ଅତିରିକ୍ତ ଯତ୍ନ',hpElderly:'ବୟସ୍କ (65+)',hpElderlySub:'କମ ଗରମ ସହନଶୀଳ',hpPreExisting:'ପୂର୍ବ ରୋଗ',hpPreExistingSub:'ସର୍ବନିମ୍ନ ସହନଶୀଳ',saveProfile:'ସଞ୍ଚୟ କରନ୍ତୁ',offlineMsg:'ଅଫଲାଇନ — ଶେଷ ଉପಲବ୍ଧ ଡାଟା',tapToCheck:'ସୁରକ୍ଷା ଯାଞ୍ଚ ପାଇଁ ASK ଦବାନ୍ତୁ',temp:'ତାପମାତ୍ରା',hum:'ଆର୍ଦ୍ରତା',wind:'ବାୟୁ',safeWindow:'ସୁରକ୍ଷିତ କାମ ସମୟ',navWindow:'ସୁରକ୍ଷିତ ସମୟ',navHistory:'ଇତିହାସ',navProfile:'ପ୍ରୋଫାଇଲ୍',askBtn:'JeevanSetu ପଚାରନ୍ତୁ',askTitle:'JeevanSetu ପଚାରନ୍ତୁ',tapToSpeak:'କହିବା ପାଇଁ ଦବାନ୍ତୁ',typePlaceholder:'ଆପଣଙ୍କ ପ୍ରଶ୍ନ ଲେଖନ୍ତୁ...',tryAsking:'ଏହା ପଚାରନ୍ତୁ:',analyzing:'ସୁରକ୍ଷା ଯାଞ୍ଚ ହେଉଛି...',back:'ପଛକୁ',reason:'କାରଣ',whyThis:'ଏହା କାହିଁକି?',unsafeDetected:'ଅସୁରକ୍ଷିତ ସ୍ଥିତି',checkAgain:'ପୁନଃ ଯାଞ୍ଚ',readAloud:'ଶୁଣନ୍ତୁ',safeWindowTitle:'ସୁରକ୍ଷିତ କାମ ସମୟ',generalWork:'ସାଧାରଣ କାମ',pesticideSpraying:'କୀଟନାଶକ',changeProfile:'ସ୍ୱାସ୍ଥ୍ୟ ପ୍ରୋଫାଇଲ୍ ବଦଳାନ୍ତୁ',calculating:'ଗଣନା ହେଉଛି...',stopActivity:'କାମ ବନ୍ଦ କରନ୍ତୁ',ashaNotified:'ASHA କର୍ମୀଙ୍କୁ ସୂଚିତ',understood:'ମୁଁ ବୁଝିଲି',historyTitle:'ସଲାହ ଇତିହାସ',noHistory:'କୌଣସି ଇତିହାସ ନାହିଁ',profileSettings:'ପ୍ରୋଫାଇଲ୍ ସେଟିଂ',editProfile:'ପ୍ରୋଫାଇଲ୍ ସମ୍ପାଦନା',changeLang:'ଭାଷା ବଦଳାନ୍ତୁ',privacyZone:'ଗୋପନୀୟତା ଓ ଡାଟା',privacyDesc:'ଏହି ଡିଭାଇସରୁ ସମସ୍ତ ଡାଟା ଡିଲିଟ୍ କରନ୍ତୁ।',deleteAll:'ସମସ୍ତ ଡାଟା ଡିଲିଟ୍',langLabel:'ଭାଷା',safe:'ସୁରକ୍ଷିତ',safeDesc:'ସ୍ଥିତି ସୁରକ୍ଷିତ ସୀମାରେ',caution:'ସାବଧାନ',cautionDesc:'ଅତିରିକ୍ତ ସାବଧାନତା',unsafe:'ଅସୁରକ୍ଷିତ',unsafeDesc:'ବାହାର କାମରୁ ବଞ୍ଚନ୍ତୁ',greeting_m:'ସୁପ୍ରଭାତ',greeting_a:'ନମସ୍କାର',greeting_e:'ଶୁଭ ସନ୍ଧ୍ୟା'}
+};
+function t(key){return (T[state.lang]||T.en)[key]||T.en[key]||key}
+
+// ═══════════════════════════════════════════════════════════
+// SCREEN NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el)el.classList.add('active');
+  if(id==='screen-home') refreshHome();
+  if(id==='screen-history') loadHistory();
+  if(id==='screen-settings') loadSettings();
+  if(id==='screen-window') initWindowScreen();
+  if(id==='screen-demo') loadDemoScenarios();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SPLASH → AUTO NAVIGATE
+// ═══════════════════════════════════════════════════════════
+setTimeout(()=>{
+  const lang=storage.getLanguage();
+  if(lang && lang!=='en') state.lang=lang;
+  if(storage.hasConsented() && storage.getProfile()){
+    state.profile=storage.getProfile();
+    applyTranslations();
+    showScreen('screen-home');
+  } else if(storage.hasConsented()){
+    applyTranslations();
+    showScreen('screen-profile');
+  } else if(storage.getLanguage() && storage.getLanguage()!=='en'){
+    applyTranslations();
+    showScreen('screen-consent');
+  } else {
+    showScreen('screen-language');
+  }
+}, 1800);
+
+// ═══════════════════════════════════════════════════════════
+// LANGUAGE
+// ═══════════════════════════════════════════════════════════
+function selectLanguage(lang){
+  state.lang=lang;
+  storage.saveLanguage(lang);
+  applyTranslations();
+  if(storage.hasConsented() && storage.getProfile()){
+    state.profile=storage.getProfile();
+    showScreen('screen-home');
+  } else if(storage.hasConsented()){
+    showScreen('screen-profile');
+  } else {
+    showScreen('screen-consent');
+  }
+}
+function cycleLang(){
+  const langs=['en','hi','od'];
+  const i=(langs.indexOf(state.lang)+1)%3;
+  state.lang=langs[i];
+  storage.saveLanguage(state.lang);
+  applyTranslations();
+  document.getElementById('btn-lang').textContent=['EN','हिं','ଓ'][i];
+}
+function applyTranslations(){
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const key=el.getAttribute('data-t');
+    const val=t(key);
+    if(val) el.textContent=val;
+  });
+  document.querySelectorAll('[data-t-placeholder]').forEach(el=>{
+    const key=el.getAttribute('data-t-placeholder');
+    const val=t(key);
+    if(val) el.placeholder=val;
+  });
+  const lb=document.getElementById('btn-lang');
+  if(lb) lb.textContent={en:'EN',hi:'हिं',od:'ଓ'}[state.lang]||'EN';
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONSENT
+// ═══════════════════════════════════════════════════════════
+function playConsent(){
+  voiceOut.speak(t('consentP1')+' '+t('consentP2'), state.lang);
+}
+function giveConsent(){
+  storage.saveConsent(true);
+  if(storage.getProfile()){
+    state.profile=storage.getProfile();
+    showScreen('screen-home');
+  } else {
+    showScreen('screen-profile');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════
+let selectedHealth='healthy_adult';
+function selectHealth(hp){
+  selectedHealth=hp;
+  document.querySelectorAll('.health-btn').forEach(b=>{
+    if(b.dataset.hp===hp){b.className='health-btn p-3 rounded-xl border-2 border-js-primary bg-js-safe-bg/30 text-left';}
+    else{b.className='health-btn p-3 rounded-xl border border-js-border bg-white text-left';}
+  });
+}
+function useGPS(){
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      state.profile=state.profile||{};
+      state.profile.location={lat:pos.coords.latitude,lon:pos.coords.longitude,name:'GPS Location'};
+      document.getElementById('inp-location').value='';
+      alert('GPS location set: '+pos.coords.latitude.toFixed(4)+', '+pos.coords.longitude.toFixed(4));
+    },()=>alert('Could not get GPS. Please select from dropdown.'));
+  }
+}
+function selectPresetLocation(id){
+  const loc=LOCATIONS[id];
+  if(loc){state.profile=state.profile||{};state.profile.location={...loc};}
+}
+function saveProfile(){
+  const name=document.getElementById('inp-name').value.trim()||'Farmer';
+  const age=document.getElementById('inp-age').value;
+  const locSel=document.getElementById('inp-location').value;
+  const crop=document.getElementById('inp-crop').value;
+  if(!state.profile?.location && locSel) selectPresetLocation(locSel);
+  if(!state.profile?.location){alert(t('locationLabel')+' required');return;}
+  state.profile={
+    name, age_group:age, health_profile:selectedHealth,
+    location:state.profile.location, crop
+  };
+  storage.saveProfile(state.profile);
+  showScreen('screen-home');
+}
+
+// ═══════════════════════════════════════════════════════════
+// HOME DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function refreshHome(){
+  applyTranslations();
+  if(!state.profile) state.profile=storage.getProfile();
+  const p=state.profile||{};
+  document.getElementById('home-farmer-name').textContent=p.name||'Farmer';
+  const h=new Date().getHours();
+  document.getElementById('greeting').textContent=h<12?t('greeting_m'):h<17?t('greeting_a'):t('greeting_e');
+
+  // Online/offline
+  const online=navigator.onLine;
+  document.getElementById('online-dot').className='w-2.5 h-2.5 rounded-full '+(online?'bg-green-500':'bg-red-500');
+  document.getElementById('offline-banner').className=online?'hidden':'bg-js-caution-bg text-js-caution p-2 text-center text-sm font-medium border-b border-js-caution';
+  if(!online){
+    const ts=storage.getTimeSinceUpdate();
+    document.getElementById('offline-time').textContent=ts?' ('+ts+')':'';
+  }
+
+  // Load cached/current weather
+  if(online && p.location) fetchWeather(p.location);
+  else displayCachedWeather();
+
+  // Show cached result
+  const cw=storage.getCachedWindow();
+  if(cw?.data) displayHomeStatus(cw.data);
+}
+
+async function fetchWeather(loc){
+  try{
+    const w=await api.getCurrentWeather(loc.lat,loc.lon);
+    state.currentWeather=w;
+    storage.cacheWeather(w,loc);
+    document.getElementById('w-temp').textContent=(w.temperature??'--')+'°C';
+    document.getElementById('w-hum').textContent=(w.humidity??'--')+'%';
+    document.getElementById('w-wind').textContent=(w.wind_speed??'--')+' km/h';
+  }catch(e){displayCachedWeather();}
+}
+function displayCachedWeather(){
+  const c=storage.getCachedWeather();
+  if(c?.weather){
+    document.getElementById('w-temp').textContent=(c.weather.temperature??'--')+'°C';
+    document.getElementById('w-hum').textContent=(c.weather.humidity??'--')+'%';
+    document.getElementById('w-wind').textContent=(c.weather.wind_speed??'--')+' km/h';
+  }
+}
+
+function displayHomeStatus(result){
+  const card=document.getElementById('home-status-card');
+  const hasRed=result.hourly?.some(h=>h.zone==='RED');
+  const hasYellow=!hasRed && result.hourly?.some(h=>h.zone==='YELLOW');
+  if(hasRed){
+    card.className='rounded-2xl p-5 border-2 text-center shadow-sm bg-js-danger-bg border-js-danger';
+    document.getElementById('home-status-icon').textContent='🔴';
+    document.getElementById('home-status-label').textContent=t('unsafe');
+    document.getElementById('home-status-label').className='text-2xl font-black mb-1 text-js-danger';
+    document.getElementById('home-status-sub').textContent=t('unsafeDesc');
+  }else if(hasYellow){
+    card.className='rounded-2xl p-5 border-2 text-center shadow-sm bg-js-caution-bg border-js-caution';
+    document.getElementById('home-status-icon').textContent='⚠️';
+    document.getElementById('home-status-label').textContent=t('caution');
+    document.getElementById('home-status-label').className='text-2xl font-black mb-1 text-js-caution';
+    document.getElementById('home-status-sub').textContent=t('cautionDesc');
+  }else{
+    card.className='rounded-2xl p-5 border-2 text-center shadow-sm bg-js-safe-bg border-js-safe';
+    document.getElementById('home-status-icon').textContent='✅';
+    document.getElementById('home-status-label').textContent=t('safe');
+    document.getElementById('home-status-label').className='text-2xl font-black mb-1 text-js-safe';
+    document.getElementById('home-status-sub').textContent=t('safeDesc');
+  }
+
+  // Timeline
+  if(result.hourly?.length){
+    const wc=document.getElementById('home-window-card');
+    wc.classList.remove('hidden');
+    renderTimeline('home-timeline',result.hourly);
+    document.getElementById('tl-start').textContent=result.hourly[0].hour_label;
+    document.getElementById('tl-mid').textContent=result.hourly[Math.floor(result.hourly.length/2)]?.hour_label;
+    document.getElementById('tl-end').textContent=result.hourly[result.hourly.length-1].hour_label;
+    document.getElementById('home-window-summary').textContent=result.window_summary||'';
+  }
+}
+
+function renderTimeline(containerId,hourly){
+  const c=document.getElementById(containerId);
+  c.innerHTML=hourly.map(h=>`<div class="zone-${h.zone}" title="${h.hour_label}: ${h.zone}"></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VOICE + TEXT INPUT
+// ═══════════════════════════════════════════════════════════
+function startVoice(){
+  const mic=document.getElementById('mic-btn');
+  const vs=document.getElementById('voice-state');
+  if(voiceIn.isAvailable()){
+    mic.classList.add('mic-ring');
+    vs.textContent='Listening...';
+    voiceIn.startListening(state.lang, transcript=>{
+      mic.classList.remove('mic-ring');
+      vs.textContent='';
+      document.getElementById('voice-transcript').textContent='"'+transcript+'"';
+      processQuery(transcript);
+    }, err=>{
+      mic.classList.remove('mic-ring');
+      vs.textContent=err;
+    });
+  } else {
+    vs.textContent='Voice not supported. Use text input below.';
+  }
+}
+function submitText(){
+  const inp=document.getElementById('text-input');
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';
+  document.getElementById('voice-transcript').textContent='"'+text+'"';
+  processQuery(text);
+}
+function submitPhrase(phrase){
+  document.getElementById('voice-transcript').textContent='"'+phrase+'"';
+  processQuery(phrase);
+}
+
+async function processQuery(text){
+  const intent=intentMapper.mapIntent(text,state.lang);
+  const activity=intent.activity||'general_work';
+  const p=state.profile||storage.getProfile()||{};
+  const loc=p.location;
+  if(!loc){alert('Please set your location in Profile first.');showScreen('screen-profile');return;}
+
+  showScreen('screen-processing');
+  const steps=[t('analyzing'),'🌡️ Getting weather...','📊 Calculating safe window...'];
+  let step=0;
+  const iv=setInterval(()=>{step++;if(step<3)document.getElementById('proc-step').textContent=steps[step];},900);
+  document.getElementById('proc-detail').textContent=intent.matched_keyword?'Detected: '+intent.intent+' ('+intent.matched_keyword+')':'';
+
+  try{
+    const req=ctx.buildRequest(p,activity,loc);
+    const result=await api.getSafeWindow(req);
+    state.currentResult=result;
+    storage.cacheWindow(result);
+
+    // Get weather
+    try{const w=await api.getCurrentWeather(loc.lat,loc.lon);state.currentWeather=w;storage.cacheWeather(w,loc);}catch(e){}
+
+    // Save to history
+    const histEntry=ctx.buildHistoryEntry(p,result,state.currentWeather);
+    storage.addHistory(histEntry);
+    try{await api.saveHistory(histEntry);}catch(e){}
+
+    clearInterval(iv);
+
+    // Check for RED → critical alert
+    const hasRed=result.hourly?.some(h=>h.zone==='RED');
+    if(hasRed && result.circuit_breaker?.triggered){
+      document.getElementById('critical-reason').textContent=result.hourly.find(h=>h.zone==='RED')?.reason||'Unsafe conditions';
+      showScreen('screen-critical');
+      setTimeout(()=>displayResult(result),100);
+    } else {
+      displayResult(result);
+      showScreen('screen-result');
+    }
+  }catch(e){
+    clearInterval(iv);
+    alert(e.message||'Could not check safety. Please try again.');
+    showScreen('screen-home');
+  }
+}
+
+function dismissCritical(){
+  showScreen('screen-result');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAFETY RESULT DISPLAY
+// ═══════════════════════════════════════════════════════════
+function displayResult(result){
+  const hasRed=result.hourly?.some(h=>h.zone==='RED');
+  const hasYellow=!hasRed && result.hourly?.some(h=>h.zone==='YELLOW');
+  const card=document.getElementById('result-card');
+  if(hasRed){
+    card.className='rounded-2xl p-6 border-2 text-center shadow-sm mb-4 bg-js-danger-bg border-js-danger';
+    document.getElementById('res-icon').textContent='🔴';
+    document.getElementById('res-label').textContent=t('unsafe');
+    document.getElementById('res-label').className='text-3xl font-black mb-1 text-js-danger';
+    document.getElementById('res-sub').textContent=t('unsafeDesc');
+    document.getElementById('res-sub').className='font-medium opacity-90 text-js-danger';
+  }else if(hasYellow){
+    card.className='rounded-2xl p-6 border-2 text-center shadow-sm mb-4 bg-js-caution-bg border-js-caution';
+    document.getElementById('res-icon').textContent='⚠️';
+    document.getElementById('res-label').textContent=t('caution');
+    document.getElementById('res-label').className='text-3xl font-black mb-1 text-js-caution';
+    document.getElementById('res-sub').textContent=t('cautionDesc');
+    document.getElementById('res-sub').className='font-medium opacity-90 text-js-caution';
+  }else{
+    card.className='rounded-2xl p-6 border-2 text-center shadow-sm mb-4 bg-js-safe-bg border-js-safe';
+    document.getElementById('res-icon').textContent='✅';
+    document.getElementById('res-label').textContent=t('safe');
+    document.getElementById('res-label').className='text-3xl font-black mb-1 text-js-safe';
+    document.getElementById('res-sub').textContent=t('safeDesc');
+    document.getElementById('res-sub').className='font-medium opacity-90 text-js-safe';
+  }
+
+  // Weather
+  const wc=document.getElementById('res-weather');
+  if(state.currentWeather){
+    const w=state.currentWeather;
+    wc.innerHTML=`
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm"><div class="text-xl mb-1">🌡️</div><div class="text-[10px] text-gray-500">${t('temp')}</div><div class="font-bold">${w.temperature??'--'}°C</div></div>
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm"><div class="text-xl mb-1">💧</div><div class="text-[10px] text-gray-500">${t('hum')}</div><div class="font-bold">${w.humidity??'--'}%</div></div>
+      <div class="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm"><div class="text-xl mb-1">💨</div><div class="text-[10px] text-gray-500">${t('wind')}</div><div class="font-bold">${w.wind_speed??'--'} km/h</div></div>`;
+  }
+
+  // Reason
+  const firstNonGreen=result.hourly?.find(h=>h.zone!=='GREEN');
+  document.getElementById('res-reason').textContent=firstNonGreen?.reason||'Within safe thresholds';
+
+  // Timeline
+  if(result.hourly?.length){
+    renderTimeline('res-timeline',result.hourly);
+    const labels=document.getElementById('res-tl-labels');
+    labels.innerHTML=`<span>${result.hourly[0].hour_label}</span><span>${result.hourly[Math.floor(result.hourly.length/2)]?.hour_label||''}</span><span>${result.hourly[result.hourly.length-1].hour_label}</span>`;
+  }
+  document.getElementById('res-window-summary').textContent=result.window_summary||'';
+
+  // Hourly detail
+  const hd=document.getElementById('res-hourly');
+  hd.innerHTML=(result.hourly||[]).map(h=>`<div class="flex gap-3 items-start text-sm"><div>${h.zone==='RED'?'❌':h.zone==='YELLOW'?'⚠️':'✅'}</div><div><span class="font-bold text-gray-700">${h.hour_label}</span><p class="text-gray-600 text-xs mt-0.5">${h.reason}</p></div></div>`).join('');
+
+  // Alert section
+  const as=document.getElementById('res-alert-section');
+  if(hasRed){
+    as.classList.remove('hidden');
+    if(result.circuit_breaker?.triggered) document.getElementById('res-alert-msg').textContent='✅ Alert automatically sent to ASHA worker for review (ID: '+result.circuit_breaker.alert_id?.slice(0,8)+'...)';
+    else if(result.circuit_breaker && !result.circuit_breaker.triggered) document.getElementById('res-alert-msg').textContent='ℹ️ An active alert already exists for this location.';
+    else document.getElementById('res-alert-msg').textContent='Alert can be sent to ASHA worker.';
+  }else{as.classList.add('hidden');}
+}
+
+function speakResult(){
+  if(!state.currentResult)return;
+  const hasRed=state.currentResult.hourly?.some(h=>h.zone==='RED');
+  const text=hasRed?t('unsafe')+'. '+t('unsafeDesc'):t('safe')+'. '+t('safeDesc');
+  voiceOut.speak(text,state.lang);
+}
+function checkAgain(){showScreen('screen-voice');}
+
+// ═══════════════════════════════════════════════════════════
+// SAFE WORKING WINDOW SCREEN
+// ═══════════════════════════════════════════════════════════
+function initWindowScreen(){
+  const p=state.profile||storage.getProfile()||{};
+  document.getElementById('win-profile').value=p.health_profile||'healthy_adult';
+  recalcWindow();
+}
+function setWindowActivity(act){
+  state.windowActivity=act;
+  document.getElementById('win-act-general').className='flex-1 p-3 rounded-xl font-semibold text-sm text-center '+(act==='general_work'?'border-2 border-js-primary bg-js-safe-bg/30':'border border-js-border bg-white');
+  document.getElementById('win-act-pesticide').className='flex-1 p-3 rounded-xl font-semibold text-sm text-center '+(act==='pesticide_spraying'?'border-2 border-js-primary bg-js-safe-bg/30':'border border-js-border bg-white');
+  recalcWindow();
+}
+async function recalcWindow(){
+  const p=state.profile||storage.getProfile()||{};
+  const loc=p.location;
+  if(!loc)return;
+  const prof=document.getElementById('win-profile').value;
+  document.getElementById('window-loading').classList.remove('hidden');
+  document.getElementById('window-result').innerHTML='';
+  try{
+    const result=await api.getSafeWindow({lat:loc.lat,lon:loc.lon,profile:prof,activity:state.windowActivity,farmer_name:p.name||'Farmer'});
+    document.getElementById('window-loading').classList.add('hidden');
+    let html='<div class="bg-white p-4 rounded-xl border border-js-border shadow-sm"><h3 class="font-bold text-gray-900 mb-2">'+t('safeWindow')+'</h3>';
+    if(result.hourly?.length){
+      html+='<div class="timeline-bar mb-2">'+result.hourly.map(h=>'<div class="zone-'+h.zone+'" title="'+h.hour_label+': '+h.zone+'"></div>').join('')+'</div>';
+      html+='<div class="flex justify-between text-xs text-gray-500 px-1 mb-2"><span>'+result.hourly[0].hour_label+'</span><span>'+result.hourly[result.hourly.length-1].hour_label+'</span></div>';
+    }
+    html+='<div class="bg-gray-50 p-3 rounded-lg text-center font-semibold text-sm">'+(result.window_summary||'No data')+'</div></div>';
+    html+='<div class="space-y-2 mt-3">'+(result.hourly||[]).map(h=>'<div class="flex gap-3 items-start text-sm bg-white p-3 rounded-xl border border-js-border"><div>'+(h.zone==='RED'?'❌':h.zone==='YELLOW'?'⚠️':'✅')+'</div><div><span class="font-bold">'+h.hour_label+'</span> <span class="text-gray-600 text-xs">'+h.reason+'</span></div></div>').join('')+'</div>';
+    document.getElementById('window-result').innerHTML=html;
+  }catch(e){
+    document.getElementById('window-loading').classList.add('hidden');
+    document.getElementById('window-result').innerHTML='<p class="text-center text-gray-500 py-8">'+e.message+'</p>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════
+async function loadHistory(){
+  const p=state.profile||storage.getProfile()||{};
+  const fid=(p.name||'farmer').toLowerCase().replace(/\s+/g,'_');
+  let items=storage.getHistory();
+
+  // Try fetching from backend too
+  try{
+    const res=await api.getHistory(fid);
+    if(res.history?.length) items=res.history;
+  }catch(e){}
+
+  const list=document.getElementById('history-list');
+  const empty=document.getElementById('history-empty');
+  if(!items.length){list.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+  list.innerHTML=items.map(h=>{
+    const colors=h.risk_level==='RED'?'border-js-danger bg-js-danger-bg':h.risk_level==='YELLOW'?'border-js-caution bg-js-caution-bg':'border-js-safe bg-js-safe-bg';
+    const icon=h.risk_level==='RED'?'🔴':h.risk_level==='YELLOW'?'⚠️':'✅';
+    const ts=h.timestamp?new Date(h.timestamp).toLocaleString():'';
+    return `<div class="p-4 rounded-xl border ${colors} shadow-sm"><div class="flex justify-between items-start"><div class="flex items-center gap-2"><span class="text-xl">${icon}</span><span class="font-bold">${h.risk_level}</span></div><span class="text-xs text-gray-500">${ts}</span></div><p class="text-sm text-gray-700 mt-1">${h.activity||''} — ${h.reason||''}</p><p class="text-xs text-gray-500 mt-1">${h.safe_window||''}</p></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+function loadSettings(){
+  const p=state.profile||storage.getProfile()||{};
+  document.getElementById('set-name').textContent=p.name||'—';
+  document.getElementById('set-health').textContent=(p.health_profile||'—').replace(/_/g,' ');
+  document.getElementById('set-location').textContent=p.location?.name||`${p.location?.lat?.toFixed(4)||'—'}, ${p.location?.lon?.toFixed(4)||''}`;
+  document.getElementById('set-lang').textContent={en:'English',hi:'हिन्दी',od:'ଓଡ଼ିଆ'}[state.lang]||'English';
+}
+function deleteAllData(){
+  if(confirm('Are you sure? All data will be deleted.')){
+    storage.clearAll();
+    state.profile=null;
+    state.currentResult=null;
+    showScreen('screen-language');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DEMO SCENARIOS
+// ═══════════════════════════════════════════════════════════
+async function loadDemoScenarios(){
+  const list=document.getElementById('demo-list');
+  try{
+    const data=await api.getDemoScenarios();
+    list.innerHTML=(data.scenarios||[]).map(s=>`
+      <button onclick='runDemoScenario(${JSON.stringify(s).replace(/'/g,"&#39;")})' class="w-full p-4 bg-white rounded-xl border border-js-border shadow-sm text-left active:scale-[.98] transition">
+        <div class="flex items-center gap-3"><span class="text-2xl">${s.icon}</span><div><div class="font-bold text-gray-900">${s.label}</div><div class="text-xs text-gray-500">${s.description}</div></div></div>
+      </button>`).join('');
+  }catch(e){list.innerHTML='<p class="text-gray-500 text-center py-4">Cannot load scenarios. Is the server running?</p>';}
+}
+async function runDemoScenario(s){
+  state.profile=state.profile||storage.getProfile()||{name:'Farmer',health_profile:'healthy_adult',location:LOCATIONS.bhubaneswar};
+  state.profile.name=s.farmer_name;
+  state.profile.health_profile=s.profile;
+  state.profile.location={lat:s.lat,lon:s.lon,name:'Demo Location'};
+  selectedHealth=s.profile;
+  storage.saveProfile(state.profile);
+
+  showScreen('screen-processing');
+  document.getElementById('proc-detail').textContent='Running: '+s.label;
+  try{
+    const result=await api.getSafeWindow({lat:s.lat,lon:s.lon,profile:s.profile,activity:s.activity,farmer_name:s.farmer_name,demo_red:s.demo_red});
+    state.currentResult=result;
+    storage.cacheWindow(result);
+    try{const w=await api.getCurrentWeather(s.lat,s.lon);state.currentWeather=w;storage.cacheWeather(w,{lat:s.lat,lon:s.lon});}catch(e){}
+    const histEntry=ctx.buildHistoryEntry(state.profile,result,state.currentWeather);
+    storage.addHistory(histEntry);
+    try{await api.saveHistory(histEntry);}catch(e){}
+
+    const hasRed=result.hourly?.some(h=>h.zone==='RED');
+    if(hasRed && result.circuit_breaker?.triggered){
+      document.getElementById('critical-reason').textContent=result.hourly.find(h=>h.zone==='RED')?.reason||'Unsafe';
+      showScreen('screen-critical');
+      setTimeout(()=>displayResult(result),100);
+    }else{
+      displayResult(result);
+      showScreen('screen-result');
+    }
+  }catch(e){alert(e.message);showScreen('screen-home');}
+}
+
+// ═══════════════════════════════════════════════════════════
+// ONLINE/OFFLINE MONITORING
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('online',()=>{
+  document.getElementById('online-dot').className='w-2.5 h-2.5 rounded-full bg-green-500';
+  document.getElementById('offline-banner').className='hidden';
+  if(state.profile?.location) fetchWeather(state.profile.location);
+});
+window.addEventListener('offline',()=>{
+  document.getElementById('online-dot').className='w-2.5 h-2.5 rounded-full bg-red-500';
+  document.getElementById('offline-banner').className='bg-js-caution-bg text-js-caution p-2 text-center text-sm font-medium border-b border-js-caution';
+  const ts=storage.getTimeSinceUpdate();
+  document.getElementById('offline-time').textContent=ts?' ('+ts+')':'';
+});
+</script>
+</body>
+</html>

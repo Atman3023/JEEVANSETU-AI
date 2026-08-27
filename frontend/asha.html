@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASHA Dashboard - JeevanSetu AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{colors:{'js-bg':'#FAFAF5','js-primary':'#2D5016','js-border':'#E0DDD4','js-safe':'#3D7A1F','js-safe-bg':'#E8F5E2','js-caution':'#B8860B','js-caution-bg':'#FFF8E1','js-danger':'#C62828','js-danger-bg':'#FFEBEE'}}}}</script>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;background:#FAFAF5}
+    .fade-in{animation:fadeIn .3s ease-out}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body class="min-h-screen">
+
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// ASHA Dashboard — Vanilla JS (no React dependency)
+// Connected to live backend API
+// ═══════════════════════════════════════════════════════
+const API = '';
+const STATUSES = {
+  ALL:'ALL', PENDING:'PENDING_ASHA_REVIEW', VALIDATED:'VALIDATED',
+  CONTACTED:'FARMER_CONTACTED', RESOLVED:'RESOLVED', REJECTED:'REJECTED'
+};
+const STATUS_COLORS = {
+  PENDING_ASHA_REVIEW:{bg:'bg-orange-100',text:'text-orange-800',dot:'bg-orange-500',label:'Pending Review'},
+  VALIDATED:{bg:'bg-blue-100',text:'text-blue-800',dot:'bg-blue-500',label:'Validated'},
+  FARMER_CONTACTED:{bg:'bg-purple-100',text:'text-purple-800',dot:'bg-purple-500',label:'Contacted'},
+  RESOLVED:{bg:'bg-green-100',text:'text-green-800',dot:'bg-green-500',label:'Resolved'},
+  REJECTED:{bg:'bg-gray-100',text:'text-gray-600',dot:'bg-gray-400',label:'Rejected'},
+};
+const LANG = {
+  en:{title:'ASHA Dashboard',farmerApp:'Farmer App',filter:'Filter',allAlerts:'All Alerts',pending:'Pending',validated:'Validated',contacted:'Contacted',resolved:'Resolved',rejected:'Rejected',noAlerts:'No alerts found',noAlertsSub:'Alerts appear when unsafe conditions are detected for farmers.',refresh:'Refresh',autoRefresh:'Auto-refresh',alertDetail:'Alert Detail',farmer:'Farmer',location:'Location',activity:'Activity',risk:'Risk Level',reason:'Reason',created:'Created',status:'Status',timeline:'Timeline',notes:'Notes',notesPlaceholder:'Add notes (optional)...',validate:'Validate Alert',reject:'Reject Alert',contact:'Mark Farmer Contacted',resolve:'Resolve Case',back:'← Back to Dashboard',confirmReject:'Are you sure you want to reject this alert?',error:'Cannot connect to server',history:'History',privacyNote:'ASHA view: farmer name, location, activity, risk level, and reason only. Full health profile details are not shown (DPDP privacy).'},
+  hi:{title:'आशा डैशबोर्ड',farmerApp:'किसान ऐप',filter:'फ़िल्टर',allAlerts:'सभी अलर्ट',pending:'लंबित',validated:'मान्य',contacted:'संपर्क किया',resolved:'हल',rejected:'अस्वीकृत',noAlerts:'कोई अलर्ट नहीं',noAlertsSub:'किसानों के लिए असुरक्षित स्थिति पर अलर्ट बनते हैं।',refresh:'रीफ्रेश',autoRefresh:'स्वतः रीफ्रेश',alertDetail:'अलर्ट विवरण',farmer:'किसान',location:'स्थान',activity:'गतिविधि',risk:'जोखिम स्तर',reason:'कारण',created:'बनाया गया',status:'स्थिति',timeline:'समय-रेखा',notes:'टिप्पणी',notesPlaceholder:'टिप्पणी जोड़ें...',validate:'अलर्ट मान्य करें',reject:'अलर्ट अस्वीकार करें',contact:'किसान से संपर्क किया',resolve:'मामला हल करें',back:'← डैशबोर्ड पर वापस',confirmReject:'क्या आप इसे अस्वीकार करना चाहते हैं?',error:'सर्वर से कनेक्ट नहीं हो सकता',history:'इतिहास',privacyNote:'ASHA दृश्य: केवल किसान का नाम, स्थान, गतिविधि, जोखिम स्तर और कारण। स्वास्थ्य विवरण नहीं दिखाया गया (DPDP गोपनीयता)।'}
+};
+
+let lang='en';
+let alerts=[];
+let filter='ALL';
+let selectedAlertId=null;
+let autoRefreshOn=true;
+let autoRefreshInterval=null;
+
+function t(k){return (LANG[lang]||LANG.en)[k]||LANG.en[k]||k}
+function toggleLang(){lang=lang==='en'?'hi':'en';render();}
+
+// ─── API CALLS ─────────────────────────────────────────
+async function fetchAlerts(){
+  try{
+    const r=await fetch(API+'/api/alerts');
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    alerts=(d.alerts||[]).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+    return true;
+  }catch(e){return false;}
+}
+
+async function doAction(alertId, action, notes=''){
+  try{
+    const r=await fetch(`${API}/api/alerts/${alertId}/${action}`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notes})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert(e.detail||'Action failed (status may have changed)');return false;}
+    return true;
+  }catch(e){alert(t('error'));return false;}
+}
+
+// ─── TIME UTILS ────────────────────────────────────────
+function timeAgo(ts){
+  if(!ts)return '';
+  const s=Math.floor((Date.now()-new Date(ts+'Z').getTime())/1000);
+  if(s<60)return 'Just now';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function fmtDate(ts){
+  if(!ts)return '';
+  return new Date(ts+'Z').toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// ─── RENDER ────────────────────────────────────────────
+function render(){
+  const app=document.getElementById('app');
+  if(selectedAlertId){
+    const alert=alerts.find(a=>a.alert_id===selectedAlertId);
+    if(!alert){selectedAlertId=null;render();return;}
+    app.innerHTML=renderDetail(alert);
+  }else{
+    app.innerHTML=renderList();
+  }
+}
+
+function renderList(){
+  const filtered=filter==='ALL'?alerts:alerts.filter(a=>a.status===filter);
+  const filterBtns=[
+    {key:'ALL',label:t('allAlerts'),count:alerts.length},
+    {key:STATUSES.PENDING,label:t('pending'),count:alerts.filter(a=>a.status===STATUSES.PENDING).length},
+    {key:STATUSES.VALIDATED,label:t('validated'),count:alerts.filter(a=>a.status===STATUSES.VALIDATED).length},
+    {key:STATUSES.CONTACTED,label:t('contacted'),count:alerts.filter(a=>a.status===STATUSES.CONTACTED).length},
+    {key:STATUSES.RESOLVED,label:t('resolved'),count:alerts.filter(a=>a.status===STATUSES.RESOLVED).length},
+    {key:STATUSES.REJECTED,label:t('rejected'),count:alerts.filter(a=>a.status===STATUSES.REJECTED).length},
+  ];
+
+  return `
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <header class="bg-white border-b border-js-border p-4 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="text-js-primary font-bold text-xl">JeevanSetu</span>
+        <span class="bg-js-primary/10 text-js-primary px-2 py-0.5 rounded text-xs font-bold">${t('title')}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="farmer.html" class="text-xs text-js-primary underline font-medium">${t('farmerApp')}</a>
+        <button onclick="toggleLang()" class="border border-js-primary text-js-primary px-2 py-1 rounded text-xs font-bold">${lang==='en'?'हिं':'EN'}</button>
+      </div>
+    </header>
+
+    <!-- Privacy note -->
+    <div class="bg-blue-50 border-b border-blue-100 px-4 py-2 text-xs text-blue-700">
+      🔒 ${t('privacyNote')}
+    </div>
+
+    <!-- Controls -->
+    <div class="p-4 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <button onclick="refreshAlerts()" class="px-3 py-2 bg-js-primary text-white rounded-lg text-sm font-semibold active:scale-95 transition">↻ ${t('refresh')}</button>
+        <label class="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+          <input type="checkbox" ${autoRefreshOn?'checked':''} onchange="toggleAutoRefresh(this.checked)" class="rounded">
+          ${t('autoRefresh')}
+        </label>
+      </div>
+      <div class="text-xs text-gray-400">${alerts.length} alerts</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="px-4 pb-3 flex gap-2 overflow-x-auto" style="-ms-overflow-style:none;scrollbar-width:none">
+      ${filterBtns.map(f=>`
+        <button onclick="setFilter('${f.key}')" class="flex-shrink-0 px-3 py-2 rounded-full text-xs font-semibold transition ${filter===f.key?'bg-js-primary text-white':'bg-white border border-js-border text-gray-700 hover:bg-gray-50'}">
+          ${f.label} ${f.count>0?'<span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] '+(filter===f.key?'bg-white/20':'bg-gray-100')+'">'+f.count+'</span>':''}
+        </button>`).join('')}
+    </div>
+
+    <!-- Alert List -->
+    <div class="px-4 pb-8 space-y-3">
+      ${filtered.length===0?`
+        <div class="text-center py-16 text-gray-400">
+          <div class="text-4xl mb-3">📋</div>
+          <p class="font-semibold">${t('noAlerts')}</p>
+          <p class="text-sm mt-1">${t('noAlertsSub')}</p>
+        </div>
+      `:filtered.map(a=>{
+        const sc=STATUS_COLORS[a.status]||STATUS_COLORS.PENDING_ASHA_REVIEW;
+        return `
+        <button onclick="openAlert('${a.alert_id}')" class="w-full p-4 bg-white rounded-xl border border-js-border shadow-sm text-left hover:shadow-md transition fade-in">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${a.risk_level==='RED'?'🔴':'⚠️'}</span>
+              <div>
+                <div class="font-bold text-gray-900">${a.farmer_name||'Unknown'}</div>
+                <div class="text-xs text-gray-500">${a.activity||''} · ${a.location?a.location.lat.toFixed(2)+', '+a.location.lon.toFixed(2):''}</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${sc.bg} ${sc.text}">${sc.label}</span>
+              <span class="text-[10px] text-gray-400">${timeAgo(a.timestamp)}</span>
+            </div>
+          </div>
+          <p class="text-sm text-gray-600 line-clamp-2">${a.reason||''}</p>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderDetail(a){
+  const sc=STATUS_COLORS[a.status]||STATUS_COLORS.PENDING_ASHA_REVIEW;
+  const canValidate=a.status===STATUSES.PENDING;
+  const canReject=a.status===STATUSES.PENDING;
+  const canContact=a.status===STATUSES.VALIDATED;
+  const canResolve=a.status===STATUSES.CONTACTED;
+  const isTerminal=a.status===STATUSES.RESOLVED||a.status===STATUSES.REJECTED;
+
+  return `
+  <div class="max-w-2xl mx-auto">
+    <header class="bg-white border-b border-js-border p-4 sticky top-0 z-20 shadow-sm">
+      <button onclick="closeDetail()" class="text-js-primary font-semibold text-sm">${t('back')}</button>
+      <div class="flex justify-between items-center mt-2">
+        <h1 class="text-lg font-bold text-gray-900">${t('alertDetail')}</h1>
+        <span class="px-3 py-1 rounded-full text-xs font-bold ${sc.bg} ${sc.text}">${sc.label}</span>
+      </div>
+      <div class="text-xs text-gray-400 mt-1">ID: ${a.alert_id?.slice(0,8)}...</div>
+    </header>
+
+    <div class="p-4 space-y-4 pb-8 fade-in">
+      <!-- Farmer Info (Privacy: no full health details shown to ASHA) -->
+      <div class="bg-white p-4 rounded-xl border border-js-border shadow-sm">
+        <h3 class="font-bold text-gray-900 mb-3">${t('farmer')}</h3>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div><span class="text-gray-500 text-xs">${t('farmer')}</span><p class="font-semibold">${a.farmer_name||'—'}</p></div>
+          <div><span class="text-gray-500 text-xs">${t('location')}</span><p class="font-semibold">${a.location?a.location.lat.toFixed(4)+', '+a.location.lon.toFixed(4):'—'}</p></div>
+          <div><span class="text-gray-500 text-xs">${t('activity')}</span><p class="font-semibold">${(a.activity||'—').replace(/_/g,' ')}</p></div>
+          <div><span class="text-gray-500 text-xs">${t('created')}</span><p class="font-semibold">${fmtDate(a.timestamp)}</p></div>
+        </div>
+      </div>
+
+      <!-- Risk Info -->
+      <div class="bg-js-danger-bg p-4 rounded-xl border border-js-danger/30 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xl">🔴</span>
+          <span class="font-bold text-js-danger">${t('risk')}: ${a.risk_level||'RED'}</span>
+        </div>
+        <p class="text-sm text-gray-800">${a.reason||'—'}</p>
+      </div>
+
+      <!-- Timeline -->
+      <div class="bg-white p-4 rounded-xl border border-js-border shadow-sm">
+        <h3 class="font-bold text-gray-900 mb-3">${t('timeline')}</h3>
+        <div class="space-y-3">
+          ${(a.status_history||[]).map((h,i)=>{
+            const hsc=STATUS_COLORS[h.new_status]||{dot:'bg-gray-400',label:h.new_status};
+            return `
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center">
+                <div class="w-3 h-3 rounded-full ${hsc.dot}"></div>
+                ${i<(a.status_history.length-1)?'<div class="w-0.5 flex-1 bg-gray-200 mt-1"></div>':''}
+              </div>
+              <div class="pb-3">
+                <div class="font-semibold text-sm">${hsc.label||h.new_status}</div>
+                <div class="text-xs text-gray-400">${fmtDate(h.timestamp)}</div>
+                ${h.notes?'<div class="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded">'+h.notes+'</div>':''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      ${isTerminal?`
+        <div class="text-center py-4">
+          <div class="text-3xl mb-2">${a.status===STATUSES.RESOLVED?'✅':'⛔'}</div>
+          <p class="font-bold text-gray-700">${a.status===STATUSES.RESOLVED?'Case Resolved':'Alert Rejected'}</p>
+        </div>
+      `:`
+        <div class="bg-white p-4 rounded-xl border border-js-border shadow-sm space-y-3">
+          <h3 class="font-bold text-gray-900">${t('notes')}</h3>
+          <textarea id="action-notes" placeholder="${t('notesPlaceholder')}" class="w-full p-3 border border-js-border rounded-lg text-sm resize-none" rows="2"></textarea>
+
+          <div class="space-y-2">
+            ${canValidate?`<button onclick="actionValidate('${a.alert_id}')" class="w-full p-4 bg-blue-600 text-white font-bold rounded-xl active:scale-[.98] transition text-sm">✓ ${t('validate')}</button>`:''}
+            ${canReject?`<button onclick="actionReject('${a.alert_id}')" class="w-full p-4 bg-gray-200 text-gray-700 font-bold rounded-xl active:scale-[.98] transition text-sm">✕ ${t('reject')}</button>`:''}
+            ${canContact?`<button onclick="actionContact('${a.alert_id}')" class="w-full p-4 bg-purple-600 text-white font-bold rounded-xl active:scale-[.98] transition text-sm">📞 ${t('contact')}</button>`:''}
+            ${canResolve?`<button onclick="actionResolve('${a.alert_id}')" class="w-full p-4 bg-green-600 text-white font-bold rounded-xl active:scale-[.98] transition text-sm">✅ ${t('resolve')}</button>`:''}
+          </div>
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+
+// ─── ACTIONS ───────────────────────────────────────────
+function setFilter(f){filter=f;render();}
+function openAlert(id){selectedAlertId=id;render();window.scrollTo(0,0);}
+function closeDetail(){selectedAlertId=null;render();}
+
+async function refreshAlerts(){
+  const ok=await fetchAlerts();
+  if(!ok)alert(t('error'));
+  render();
+}
+
+function toggleAutoRefresh(on){
+  autoRefreshOn=on;
+  if(on) startAutoRefresh();
+  else if(autoRefreshInterval){clearInterval(autoRefreshInterval);autoRefreshInterval=null;}
+}
+function startAutoRefresh(){
+  if(autoRefreshInterval)clearInterval(autoRefreshInterval);
+  autoRefreshInterval=setInterval(async()=>{
+    if(!selectedAlertId){await fetchAlerts();render();}
+  },8000);
+}
+
+async function actionValidate(id){
+  const notes=document.getElementById('action-notes')?.value||'';
+  if(await doAction(id,'validate',notes)){await fetchAlerts();render();}
+}
+async function actionReject(id){
+  if(!confirm(t('confirmReject')))return;
+  const notes=document.getElementById('action-notes')?.value||'';
+  if(await doAction(id,'reject',notes)){await fetchAlerts();render();}
+}
+async function actionContact(id){
+  const notes=document.getElementById('action-notes')?.value||'';
+  if(await doAction(id,'contact',notes)){await fetchAlerts();render();}
+}
+async function actionResolve(id){
+  const notes=document.getElementById('action-notes')?.value||'';
+  if(await doAction(id,'resolve',notes)){await fetchAlerts();render();}
+}
+
+// ─── INIT ──────────────────────────────────────────────
+(async function init(){
+  await fetchAlerts();
+  render();
+  if(autoRefreshOn) startAutoRefresh();
+})();
+</script>
+</body>
+</html>
