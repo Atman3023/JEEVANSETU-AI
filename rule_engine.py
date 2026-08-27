@@ -90,3 +90,4 @@ def compute_safe_window(readings: List[HourReading], profile: Profile, activity:
         "window_summary": f"{safe_hours[0]} - {safe_hours[-1]}" if safe_hours else "No safe window - stay indoors",
         "first_red_hour": next((v.hour_label for v in verdicts if v.zone == "RED"), None),
     }
+
