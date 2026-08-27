@@ -1,0 +1,852 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASHA Dashboard - JeevanSetu AI</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'js-bg': '#FAFAF5',
+                        'js-primary': '#2D5016',
+                        'js-border': '#E0DDD4',
+                        'js-safe': '#3D7A1F',
+                        'js-safe-bg': '#E8F5E2',
+                        'js-caution': '#B8860B',
+                        'js-caution-bg': '#FFF8E1',
+                        'js-danger': '#C62828',
+                        'js-danger-bg': '#FFEBEE',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .pulse-once {
+            animation: pulse-once 1s ease-out;
+        }
+        @keyframes pulse-once {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-js-bg text-gray-900 antialiased min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+        // ==========================================
+        // ICONS (SVG Components)
+        // ==========================================
+        const IconActivity = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
+        const IconAlertCircle = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
+        const IconArrowLeft = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
+        const IconCheck = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconCheckCircle = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+        const IconChevronRight = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+        const IconClock = ({ className = "w-4 h-4" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        const IconGlobe = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>;
+        const IconMapPin = ({ className = "w-4 h-4" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
+        const IconPhone = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>;
+        const IconRefresh = ({ className = "w-5 h-5", spinning = false }) => <svg xmlns="http://www.w3.org/2000/svg" className={`${className} ${spinning ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+        const IconUser = ({ className = "w-4 h-4" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+        const IconX = ({ className = "w-5 h-5" }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+
+        // ==========================================
+        // TRANSLATIONS
+        // ==========================================
+        const translations = {
+            en: {
+                appName: "JeevanSetu",
+                dashboardTitle: "ASHA Dashboard",
+                farmerApp: "Farmer App",
+                autoRefresh: "Auto-refresh",
+                lastRefreshed: "Last refreshed: {time}s ago",
+                justNow: "Just now",
+                
+                // Statuses
+                status_PENDING_ASHA_REVIEW: "Pending Review",
+                status_VALIDATED: "Validated",
+                status_FARMER_CONTACTED: "Contacted",
+                status_RESOLVED: "Resolved",
+                status_REJECTED: "Rejected",
+                status_ALL: "All Alerts",
+                
+                // List & Filters
+                noAlerts: "No alerts found.",
+                noAlertsDesc: "Alerts are created when unsafe conditions are detected for farmers.",
+                viewDetails: "View Details",
+                
+                // Details View
+                backToDashboard: "Back to Dashboard",
+                alertId: "Alert ID",
+                farmerInfo: "Farmer Information",
+                riskInfo: "Risk Information",
+                timeline: "Timeline",
+                notes: "Notes (Optional)",
+                notesPlaceholder: "Add context or observations here...",
+                
+                // Actions
+                actionValidate: "Validate Alert",
+                actionReject: "Reject Alert",
+                actionContact: "Mark Farmer Contacted",
+                actionResolve: "Resolve Case",
+                caseResolved: "Case Resolved",
+                alertRejected: "Alert Rejected",
+                actionNotAvailable: "This action is no longer available. The alert status may have changed.",
+                
+                // Risk / Profiling
+                highRisk: "HIGH RISK",
+                reason: "Reason",
+                created: "Created",
+                
+                // Errors / Loading
+                loading: "Loading alerts...",
+                errorFetch: "Cannot connect to JeevanSetu server",
+                retry: "Retry",
+                alertNotFound: "Alert not found.",
+
+                // Confirmations
+                confirmRejectTitle: "Are you sure?",
+                confirmRejectDesc: "Rejecting an alert means it was a false alarm and requires no further action.",
+                cancel: "Cancel",
+                confirm: "Yes, Reject"
+            },
+            hi: {
+                appName: "जीवनसेतु",
+                dashboardTitle: "आशा डैशबोर्ड",
+                farmerApp: "किसान ऐप",
+                autoRefresh: "स्वतः रीफ्रेश",
+                lastRefreshed: "अंतिम रीफ्रेश: {time}s पहले",
+                justNow: "अभी-अभी",
+                
+                status_PENDING_ASHA_REVIEW: "समीक्षा लंबित",
+                status_VALIDATED: "मान्य",
+                status_FARMER_CONTACTED: "संपर्क किया",
+                status_RESOLVED: "हल हो गया",
+                status_REJECTED: "अस्वीकृत",
+                status_ALL: "सभी अलर्ट",
+                
+                noAlerts: "कोई अलर्ट नहीं मिला।",
+                noAlertsDesc: "किसानों के लिए असुरक्षित स्थिति पाए जाने पर अलर्ट बनाए जाते हैं।",
+                viewDetails: "विवरण देखें",
+                
+                backToDashboard: "डैशबोर्ड पर वापस जाएं",
+                alertId: "अलर्ट आईडी",
+                farmerInfo: "किसान की जानकारी",
+                riskInfo: "जोखिम की जानकारी",
+                timeline: "समय-रेखा",
+                notes: "टिप्पणियाँ (वैकल्पिक)",
+                notesPlaceholder: "यहाँ संदर्भ या अवलोकन जोड़ें...",
+                
+                actionValidate: "अलर्ट मान्य करें",
+                actionReject: "अलर्ट अस्वीकार करें",
+                actionContact: "किसान से संपर्क किया",
+                actionResolve: "मामला हल करें",
+                caseResolved: "मामला हल हो गया",
+                alertRejected: "अलर्ट अस्वीकृत",
+                actionNotAvailable: "यह कार्रवाई अब उपलब्ध नहीं है। अलर्ट की स्थिति बदल गई होगी।",
+                
+                highRisk: "उच्च जोखिम",
+                reason: "कारण",
+                created: "बनाया गया",
+                
+                loading: "अलर्ट लोड हो रहे हैं...",
+                errorFetch: "जीवनसेतु सर्वर से कनेक्ट नहीं हो सकता",
+                retry: "पुनः प्रयास करें",
+                alertNotFound: "अलर्ट नहीं मिला।",
+
+                confirmRejectTitle: "क्या आपको यकीन है?",
+                confirmRejectDesc: "अलर्ट को अस्वीकार करने का मतलब है कि यह गलत सूचना थी और आगे कोई कार्रवाई आवश्यक नहीं है।",
+                cancel: "रद्द करें",
+                confirm: "हाँ, अस्वीकार करें"
+            }
+        };
+
+        const STATUSES = {
+            ALL: 'ALL',
+            PENDING: 'PENDING_ASHA_REVIEW',
+            VALIDATED: 'VALIDATED',
+            CONTACTED: 'FARMER_CONTACTED',
+            RESOLVED: 'RESOLVED',
+            REJECTED: 'REJECTED'
+        };
+
+        const STATUS_COLORS = {
+            [STATUSES.PENDING]: { bg: 'bg-orange-100', text: 'text-orange-800', dot: 'bg-orange-500' },
+            [STATUSES.VALIDATED]: { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
+            [STATUSES.CONTACTED]: { bg: 'bg-purple-100', text: 'text-purple-800', dot: 'bg-purple-500' },
+            [STATUSES.RESOLVED]: { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500' },
+            [STATUSES.REJECTED]: { bg: 'bg-gray-100', text: 'text-gray-800', dot: 'bg-gray-500' },
+        };
+
+        // ==========================================
+        // UTILS
+        // ==========================================
+        const timeAgo = (dateInput) => {
+            if (!dateInput) return '';
+            const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " years ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " months ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " days ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " hours ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " minutes ago";
+            return "Just now";
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleString([], { 
+                month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
+            });
+        };
+
+        const truncateStr = (str, len = 60) => {
+            if (!str) return '';
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        };
+
+        // ==========================================
+        // API MOCK / SERVICE
+        // ==========================================
+        const API_BASE = '/api';
+        
+        // Simulating the API requests for CDN-based standalone file
+        // In real environment, these call `fetch`
+        const api = {
+            async getAlerts() {
+                try {
+                    const res = await fetch(`${API_BASE}/alerts`);
+                    if (!res.ok) throw new Error('Failed to fetch');
+                    return res.json();
+                } catch (e) {
+                    console.warn("API failed, using mock data for demo purposes");
+                    // Mock fallback if backend is down
+                    return mockAlerts;
+                }
+            },
+            async updateAlertStatus(id, action, notes = "") {
+                try {
+                    const res = await fetch(`${API_BASE}/alerts/${id}/${action}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notes })
+                    });
+                    if (!res.ok) throw new Error('Update failed');
+                    return res.json();
+                } catch(e) {
+                    console.warn(`Mocking API update for action ${action}`);
+                    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 800));
+                }
+            }
+        };
+
+        const mockAlerts = [
+            {
+                alert_id: 'AL-100234',
+                farmer_name: 'Ram Singh',
+                profile: 'Elderly',
+                activity: 'Harvesting',
+                location: { lat: 28.6139, lon: 77.2090 },
+                status: STATUSES.PENDING,
+                reason: 'Extreme heat detected (42°C). High risk for elderly profile during strenuous activity.',
+                timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+                status_history: [
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), old_status: null, new_status: STATUSES.PENDING, notes: 'Alert generated by system' }
+                ]
+            },
+            {
+                alert_id: 'AL-100235',
+                farmer_name: 'Anita Devi',
+                profile: 'Pregnant',
+                activity: 'Pesticide Spraying',
+                location: { lat: 28.5355, lon: 77.3910 },
+                status: STATUSES.VALIDATED,
+                reason: 'Toxic exposure risk. Profile is marked pregnant, strictly avoid pesticide handling.',
+                timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+                status_history: [
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(), old_status: null, new_status: STATUSES.PENDING, notes: 'Alert generated by system' },
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 100).toISOString(), old_status: STATUSES.PENDING, new_status: STATUSES.VALIDATED, notes: 'Called neighbors to check.' }
+                ]
+            },
+            {
+                alert_id: 'AL-100231',
+                farmer_name: 'Suresh Kumar',
+                profile: 'General',
+                activity: 'Heavy Lifting',
+                location: { lat: 28.4595, lon: 77.0266 },
+                status: STATUSES.CONTACTED,
+                reason: 'Heart rate spike detected via wearable during heavy lifting.',
+                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+                status_history: [
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), old_status: null, new_status: STATUSES.PENDING, notes: 'System generation' },
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3.5).toISOString(), old_status: STATUSES.PENDING, new_status: STATUSES.VALIDATED, notes: 'Verified HR anomaly.' },
+                    { timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(), old_status: STATUSES.VALIDATED, new_status: STATUSES.CONTACTED, notes: 'Spoke to farmer, he is resting now.' }
+                ]
+            }
+        ];
+
+
+        // ==========================================
+        // MAIN APP COMPONENT
+        // ==========================================
+        const App = () => {
+            const [lang, setLang] = useState('en');
+            const [alerts, setAlerts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            
+            const [activeFilter, setActiveFilter] = useState(STATUSES.ALL);
+            const [selectedAlertId, setSelectedAlertId] = useState(null);
+            const [autoRefresh, setAutoRefresh] = useState(true);
+            const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+            const [timeSinceRefresh, setTimeSinceRefresh] = useState(0);
+
+            const t = (key, params = {}) => {
+                let text = translations[lang][key] || key;
+                Object.keys(params).forEach(p => {
+                    text = text.replace(`{${p}}`, params[p]);
+                });
+                return text;
+            };
+
+            const fetchAlerts = useCallback(async (isBackground = false) => {
+                if (!isBackground) setLoading(true);
+                try {
+                    const data = await api.getAlerts();
+                    // Backend returns { alerts: [...], count: N }
+                    const alertList = data.alerts || data || [];
+                    // Sort latest first — backend uses 'timestamp' field
+                    const sorted = alertList.sort((a, b) => new Date(b.timestamp || b.timestamp || 0) - new Date(a.timestamp || a.timestamp || 0));
+                    setAlerts(sorted);
+                    setError(null);
+                    setLastRefreshTime(Date.now());
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
+            useEffect(() => {
+                fetchAlerts();
+            }, [fetchAlerts]);
+
+            // Auto-refresh interval
+            useEffect(() => {
+                let interval;
+                if (autoRefresh && !selectedAlertId) {
+                    interval = setInterval(() => {
+                        fetchAlerts(true);
+                    }, 10000);
+                }
+                return () => clearInterval(interval);
+            }, [autoRefresh, selectedAlertId, fetchAlerts]);
+
+            // Timer display updater
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setTimeSinceRefresh(Math.floor((Date.now() - lastRefreshTime) / 1000));
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [lastRefreshTime]);
+
+            const selectedAlert = useMemo(() => 
+                alerts.find(a => (a.alert_id||a.id) === selectedAlertId) || null
+            , [alerts, selectedAlertId]);
+
+            const filteredAlerts = useMemo(() => 
+                activeFilter === STATUSES.ALL 
+                    ? alerts 
+                    : alerts.filter(a => a.status === activeFilter)
+            , [alerts, activeFilter]);
+
+            const statCounts = useMemo(() => {
+                const counts = { [STATUSES.PENDING]: 0, [STATUSES.VALIDATED]: 0, [STATUSES.CONTACTED]: 0, [STATUSES.RESOLVED]: 0, [STATUSES.REJECTED]: 0 };
+                alerts.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+                return counts;
+            }, [alerts]);
+
+            // Perform actions
+            const [actionLoading, setActionLoading] = useState(false);
+            const handleAction = async (alertId, action, notes) => {
+                setActionLoading(true);
+                try {
+                    // Update server
+                    await api.updateAlertStatus(alertId, action, notes);
+                    
+                    // Optimistic update locally
+                    const updatedAlerts = [...alerts];
+                    const idx = updatedAlerts.findIndex(a => (a.alert_id||a.id) === alertId);
+                    if (idx !== -1) {
+                        const alert = updatedAlerts[idx];
+                        let newStatus = alert.status;
+                        if (action === 'validate') newStatus = STATUSES.VALIDATED;
+                        if (action === 'reject') newStatus = STATUSES.REJECTED;
+                        if (action === 'contact') newStatus = STATUSES.CONTACTED;
+                        if (action === 'resolve') newStatus = STATUSES.RESOLVED;
+
+                        alert.status = newStatus;
+                        alert.status_history = [
+                            { timestamp: new Date().toISOString(), old_status: alert.status, new_status: newStatus, notes: notes || `Action: ${action}` },
+                            ...(alert.status_history || [])
+                        ];
+                        setAlerts(updatedAlerts);
+                    }
+                    
+                    // Fetch real state in background
+                    fetchAlerts(true);
+                } catch(e) {
+                    alert(t('actionNotAvailable'));
+                    fetchAlerts(true);
+                } finally {
+                    setActionLoading(false);
+                }
+            };
+
+            return (
+                <div className="flex flex-col h-screen overflow-hidden">
+                    {/* NAVBAR */}
+                    <header className="bg-white border-b border-js-border shadow-sm z-10 flex-shrink-0">
+                        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="text-js-primary font-bold text-xl flex items-center">
+                                    <IconAlertCircle className="w-6 h-6 mr-2 text-js-safe" />
+                                    {t('appName')}
+                                </div>
+                                <span className="bg-js-safe-bg text-js-safe text-xs font-semibold px-2 py-1 rounded-md hidden sm:block">
+                                    {t('dashboardTitle')}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center space-x-4">
+                                <a href="/frontend/farmer.html" className="text-sm font-medium text-gray-600 hover:text-js-primary transition-colors hidden sm:flex items-center">
+                                    <IconUser className="w-4 h-4 mr-1"/> {t('farmerApp')}
+                                </a>
+                                
+                                <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
+                                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                                    <span className="hidden md:inline">
+                                        {timeSinceRefresh === 0 ? t('justNow') : t('lastRefreshed', { time: timeSinceRefresh })}
+                                    </span>
+                                    <button 
+                                        onClick={() => setAutoRefresh(!autoRefresh)}
+                                        className={`p-1.5 rounded-full transition-colors ${autoRefresh ? 'bg-js-safe-bg text-js-safe' : 'bg-gray-100 text-gray-400'}`}
+                                        title={t('autoRefresh')}
+                                    >
+                                        <IconRefresh className={`w-4 h-4 ${autoRefresh && !selectedAlertId ? 'animate-spin' : ''}`} />
+                                    </button>
+                                </div>
+
+                                <button 
+                                    onClick={() => setLang(l => l === 'en' ? 'hi' : 'en')}
+                                    className="flex items-center text-sm font-medium border border-js-border rounded-md px-2 py-1 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    <IconGlobe className="w-4 h-4 mr-1 text-gray-500"/>
+                                    {lang === 'en' ? 'हिं' : 'EN'}
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN CONTENT AREA */}
+                    <div className="flex-1 overflow-auto bg-js-bg">
+                        <div className="max-w-7xl mx-auto p-4 md:p-6 h-full flex flex-col">
+                            
+                            {/* If error loading entirely */}
+                            {error && !alerts.length && (
+                                <div className="bg-js-danger-bg border border-js-danger text-js-danger p-4 rounded-xl flex items-center justify-between mb-4">
+                                    <div className="flex items-center">
+                                        <IconAlertCircle className="w-5 h-5 mr-2" />
+                                        <span>{t('errorFetch')}</span>
+                                    </div>
+                                    <button onClick={() => fetchAlerts()} className="px-3 py-1 bg-white rounded border border-js-danger text-sm font-medium hover:bg-red-50">
+                                        {t('retry')}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Two-column layout on Desktop, Single stacked on Mobile */}
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
+                                
+                                {/* LEFT COLUMN (List View) */}
+                                <div className={`md:col-span-5 lg:col-span-4 flex flex-col h-full bg-white border border-js-border rounded-xl overflow-hidden shadow-sm ${selectedAlertId ? 'hidden md:flex' : 'flex'}`}>
+                                    
+                                    {/* Stats Row */}
+                                    <div className="p-3 bg-gray-50 border-b border-js-border overflow-x-auto no-scrollbar flex space-x-2 flex-shrink-0">
+                                        {[
+                                            { status: STATUSES.PENDING, icon: IconAlertCircle, colorClass: 'bg-orange-100 text-orange-800' },
+                                            { status: STATUSES.VALIDATED, icon: IconCheck, colorClass: 'bg-blue-100 text-blue-800' },
+                                            { status: STATUSES.CONTACTED, icon: IconPhone, colorClass: 'bg-purple-100 text-purple-800' },
+                                            { status: STATUSES.RESOLVED, icon: IconCheckCircle, colorClass: 'bg-green-100 text-green-800' }
+                                        ].map(item => {
+                                            const isActive = activeFilter === item.status;
+                                            return (
+                                                <button 
+                                                    key={item.status}
+                                                    onClick={() => setActiveFilter(isActive ? STATUSES.ALL : item.status)}
+                                                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-1 justify-center min-w-[80px]
+                                                        ${isActive ? 'ring-2 ring-js-primary ring-offset-1 ' + item.colorClass : 'bg-white border border-js-border text-gray-600 hover:bg-gray-50'}`}
+                                                >
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-xl font-bold">{statCounts[item.status]}</span>
+                                                        <span className="text-[10px] uppercase tracking-wider opacity-80">{t(`status_${item.status}`).split(' ')[0]}</span>
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {/* Tabs */}
+                                    <div className="flex border-b border-js-border overflow-x-auto no-scrollbar flex-shrink-0">
+                                        {[STATUSES.ALL, STATUSES.PENDING, STATUSES.VALIDATED, STATUSES.CONTACTED, STATUSES.RESOLVED, STATUSES.REJECTED].map(status => (
+                                            <button 
+                                                key={status}
+                                                onClick={() => setActiveFilter(status)}
+                                                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors
+                                                    ${activeFilter === status ? 'border-js-primary text-js-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                                            >
+                                                {t(`status_${status}`)}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Alert List */}
+                                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50">
+                                        {loading && !alerts.length ? (
+                                            <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                                                <IconRefresh className="w-8 h-8 animate-spin mb-2 text-gray-300" />
+                                                <p>{t('loading')}</p>
+                                            </div>
+                                        ) : filteredAlerts.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-40 text-gray-500 p-6 text-center">
+                                                <IconCheckCircle className="w-12 h-12 text-gray-300 mb-3" />
+                                                <p className="font-medium text-gray-900 mb-1">{t('noAlerts')}</p>
+                                                <p className="text-sm">{t('noAlertsDesc')}</p>
+                                            </div>
+                                        ) : (
+                                            filteredAlerts.map(alert => (
+                                                <div 
+                                                    key={alert.alert_id}
+                                                    onClick={() => setSelectedAlertId(alert.alert_id)}
+                                                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                                                        selectedAlertId === alert.alert_id 
+                                                        ? 'bg-js-safe-bg border-js-safe shadow-sm ring-1 ring-js-safe' 
+                                                        : 'bg-white border-js-border hover:shadow-md hover:border-gray-300'
+                                                    }`}
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-js-danger-bg text-js-danger border border-js-danger">
+                                                                🔴 {t('highRisk')}
+                                                            </span>
+                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${STATUS_COLORS[alert.status]?.bg} ${STATUS_COLORS[alert.status]?.text}`}>
+                                                                {t(`status_${alert.status}`)}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs text-gray-500 font-medium">{timeAgo(alert.timestamp)}</span>
+                                                    </div>
+                                                    
+                                                    <h3 className="font-bold text-gray-900 mb-1">{alert.farmer_name}</h3>
+                                                    
+                                                    <div className="flex items-center text-xs text-gray-600 mb-2 space-x-3">
+                                                        <span className="flex items-center"><IconUser className="w-3 h-3 mr-1"/> {alert.profile}</span>
+                                                        <span className="flex items-center"><IconActivity className="w-3 h-3 mr-1"/> {alert.activity}</span>
+                                                    </div>
+                                                    
+                                                    <p className="text-sm text-gray-700 line-clamp-2 leading-tight">
+                                                        {alert.reason}
+                                                    </p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+
+                                {/* RIGHT COLUMN (Detail View) */}
+                                <div className={`md:col-span-7 lg:col-span-8 h-full bg-white border border-js-border rounded-xl shadow-sm overflow-hidden flex flex-col ${!selectedAlertId ? 'hidden md:flex' : 'flex'}`}>
+                                    {!selectedAlert ? (
+                                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                                            <IconActivity className="w-16 h-16 text-gray-200 mb-4" />
+                                            <p className="text-lg font-medium text-gray-500">Select an alert to view details</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Detail Header */}
+                                            <div className="bg-white border-b border-js-border p-4 flex items-center justify-between sticky top-0 z-10">
+                                                <div className="flex items-center space-x-4">
+                                                    <button 
+                                                        onClick={() => setSelectedAlertId(null)}
+                                                        className="md:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                                    >
+                                                        <IconArrowLeft />
+                                                    </button>
+                                                    <div>
+                                                        <div className="text-xs text-gray-500 font-medium mb-1">
+                                                            {t('alertId')}: {selectedalert.alert_id}
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <h2 className="text-xl font-bold text-gray-900">{selectedAlert.farmer_name}</h2>
+                                                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_COLORS[selectedAlert.status]?.bg} ${STATUS_COLORS[selectedAlert.status]?.text}`}>
+                                                                {t(`status_${selectedAlert.status}`)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                    
+                                                    {/* LEFT CONTENT */}
+                                                    <div className="space-y-6">
+                                                        {/* Risk Card */}
+                                                        <div className="bg-js-danger-bg border border-js-danger rounded-xl p-4 shadow-sm">
+                                                            <div className="flex items-center text-js-danger font-bold mb-2">
+                                                                <IconAlertCircle className="w-5 h-5 mr-2" />
+                                                                {t('highRisk')}
+                                                            </div>
+                                                            <p className="text-gray-900 text-sm md:text-base font-medium mb-3">
+                                                                {selectedAlert.reason}
+                                                            </p>
+                                                            <div className="flex items-center text-xs text-gray-600">
+                                                                <IconClock className="w-4 h-4 mr-1" />
+                                                                {t('created')}: {formatDate(selectedAlert.timestamp)} ({timeAgo(selectedAlert.timestamp)})
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Farmer Info Card */}
+                                                        <div className="bg-white border border-js-border rounded-xl p-4 shadow-sm">
+                                                            <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-2 mb-3">
+                                                                {t('farmerInfo')}
+                                                            </h3>
+                                                            <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                                                                <div>
+                                                                    <div className="text-gray-500 text-xs mb-1">Profile</div>
+                                                                    <div className="font-medium flex items-center"><IconUser className="w-4 h-4 mr-1 text-gray-400"/> {selectedAlert.profile}</div>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-gray-500 text-xs mb-1">Activity</div>
+                                                                    <div className="font-medium flex items-center"><IconActivity className="w-4 h-4 mr-1 text-gray-400"/> {selectedAlert.activity}</div>
+                                                                </div>
+                                                                <div className="col-span-2">
+                                                                    <div className="text-gray-500 text-xs mb-1">Location</div>
+                                                                    <div className="font-medium flex items-center text-blue-600">
+                                                                        <IconMapPin className="w-4 h-4 mr-1 text-blue-500"/> 
+                                                                        {selectedAlert.location.lat.toFixed(4)}, {selectedAlert.location.lon.toFixed(4)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* ACTION AREA */}
+                                                        <ActionPanel 
+                                                            alert={selectedAlert} 
+                                                            onAction={handleAction} 
+                                                            loading={actionLoading}
+                                                            t={t}
+                                                        />
+                                                    </div>
+
+                                                    {/* RIGHT CONTENT - TIMELINE */}
+                                                    <div>
+                                                        <div className="bg-white border border-js-border rounded-xl p-4 shadow-sm h-full">
+                                                            <h3 className="font-semibold text-gray-900 mb-4">{t('timeline')}</h3>
+                                                            <div className="relative pl-2">
+                                                                {/* Vertical line */}
+                                                                <div className="absolute left-[11px] top-2 bottom-0 w-0.5 bg-gray-200"></div>
+                                                                
+                                                                <div className="space-y-6 relative">
+                                                                    {(selectedAlert.status_history || []).map((entry, idx) => (
+                                                                        <div key={idx} className="flex items-start">
+                                                                            <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 
+                                                                                ${STATUS_COLORS[entry.new_status]?.bg || 'bg-gray-100'}`}>
+                                                                                <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[entry.new_status]?.dot || 'bg-gray-400'}`}></div>
+                                                                            </div>
+                                                                            <div className="ml-4">
+                                                                                <div className="text-sm font-semibold text-gray-900">
+                                                                                    {t(`status_${entry.new_status}`)}
+                                                                                </div>
+                                                                                <div className="text-xs text-gray-500 mt-0.5 mb-1">
+                                                                                    {formatDate(entry.timestamp)}
+                                                                                </div>
+                                                                                {entry.notes && (
+                                                                                    <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 mt-1 inline-block">
+                                                                                        {entry.notes}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // Sub-component for rendering context-sensitive actions
+        const ActionPanel = ({ alert, onAction, loading, t }) => {
+            const [notes, setNotes] = useState('');
+            const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+
+            // Reset notes on alert change
+            useEffect(() => { setNotes(''); setShowRejectConfirm(false); }, [alert.alert_id]);
+
+            if (alert.status === STATUSES.RESOLVED) {
+                return (
+                    <div className="bg-js-safe-bg border border-js-safe rounded-xl p-6 text-center">
+                        <IconCheckCircle className="w-12 h-12 text-js-safe mx-auto mb-2" />
+                        <h3 className="text-lg font-bold text-js-safe">{t('caseResolved')}</h3>
+                        <p className="text-sm text-js-safe mt-1 opacity-90">No further action required.</p>
+                    </div>
+                );
+            }
+
+            if (alert.status === STATUSES.REJECTED) {
+                return (
+                    <div className="bg-gray-100 border border-gray-300 rounded-xl p-6 text-center">
+                        <IconX className="w-12 h-12 text-gray-500 mx-auto mb-2" />
+                        <h3 className="text-lg font-bold text-gray-700">{t('alertRejected')}</h3>
+                        <p className="text-sm text-gray-500 mt-1">This alert was marked as a false alarm or ignored.</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="bg-white border border-js-border rounded-xl p-4 shadow-sm">
+                    <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
+                    
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">{t('notes')}</label>
+                        <textarea 
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder={t('notesPlaceholder')}
+                            className="w-full text-sm p-2 border border-js-border rounded-md focus:ring-1 focus:ring-js-primary focus:border-js-primary resize-none h-20"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {showRejectConfirm ? (
+                        <div className="bg-js-danger-bg border border-js-danger p-3 rounded-lg animate-fade-in">
+                            <p className="text-sm font-bold text-js-danger mb-1">{t('confirmRejectTitle')}</p>
+                            <p className="text-xs text-js-danger mb-3 opacity-90">{t('confirmRejectDesc')}</p>
+                            <div className="flex space-x-2">
+                                <button 
+                                    onClick={() => setShowRejectConfirm(false)}
+                                    className="flex-1 py-2 text-sm font-medium bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                    disabled={loading}
+                                >
+                                    {t('cancel')}
+                                </button>
+                                <button 
+                                    onClick={() => onAction(alert.alert_id, 'reject', notes)}
+                                    className="flex-1 py-2 text-sm font-medium bg-js-danger text-white rounded-md hover:bg-red-800 flex justify-center items-center"
+                                    disabled={loading}
+                                >
+                                    {loading ? <IconRefresh className="w-4 h-4 animate-spin" /> : t('confirm')}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col space-y-2">
+                            {alert.status === STATUSES.PENDING && (
+                                <>
+                                    <button 
+                                        onClick={() => onAction(alert.alert_id, 'validate', notes)}
+                                        disabled={loading}
+                                        className="w-full py-3 bg-js-primary text-white font-medium rounded-lg hover:bg-[#203a10] transition-colors flex justify-center items-center shadow-sm min-h-[48px]"
+                                    >
+                                        {loading ? <IconRefresh className="w-5 h-5 animate-spin" /> : <><IconCheck className="w-5 h-5 mr-2" /> {t('actionValidate')}</>}
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowRejectConfirm(true)}
+                                        disabled={loading}
+                                        className="w-full py-3 bg-white border border-js-danger text-js-danger font-medium rounded-lg hover:bg-js-danger-bg transition-colors min-h-[48px]"
+                                    >
+                                        {t('actionReject')}
+                                    </button>
+                                </>
+                            )}
+
+                            {alert.status === STATUSES.VALIDATED && (
+                                <button 
+                                    onClick={() => onAction(alert.alert_id, 'contact', notes)}
+                                    disabled={loading}
+                                    className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex justify-center items-center shadow-sm min-h-[48px]"
+                                >
+                                    {loading ? <IconRefresh className="w-5 h-5 animate-spin" /> : <><IconPhone className="w-5 h-5 mr-2" /> {t('actionContact')}</>}
+                                </button>
+                            )}
+
+                            {alert.status === STATUSES.CONTACTED && (
+                                <button 
+                                    onClick={() => onAction(alert.alert_id, 'resolve', notes)}
+                                    disabled={loading}
+                                    className="w-full py-3 bg-js-safe text-white font-medium rounded-lg hover:bg-green-800 transition-colors flex justify-center items-center shadow-sm min-h-[48px]"
+                                >
+                                    {loading ? <IconRefresh className="w-5 h-5 animate-spin" /> : <><IconCheckCircle className="w-5 h-5 mr-2" /> {t('actionResolve')}</>}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

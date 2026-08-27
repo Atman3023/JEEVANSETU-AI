@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JeevanSetu Farmer Dashboard</title>
+  
+  <!-- CDNs for React, ReactDOM, Babel, and Tailwind -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'js-bg': '#FAFAF5',
+            'js-primary': '#2D5016',
+            'js-border': '#E0DDD4',
+            'js-safe': '#3D7A1F',
+            'js-safe-bg': '#E8F5E2',
+            'js-caution': '#B8860B',
+            'js-caution-bg': '#FFF8E1',
+            'js-danger': '#C62828',
+            'js-danger-bg': '#FFEBEE',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #FAFAF5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // --- Translations ---
+    const translations = {
+      en: {
+        brand: "JeevanSetu",
+        ashaDashboard: "ASHA Dashboard",
+        demoMode: "Demo Mode",
+        goodMorning: "Good morning",
+        goodAfternoon: "Good afternoon",
+        goodEvening: "Good evening",
+        yourName: "Your name",
+        yourLocation: "Your Location",
+        useMyLocation: "Use my location",
+        selectHealthProfile: "Select your health profile",
+        healthProfileSubtitle: "This helps us give you personalized safety advice",
+        healthyAdult: "Healthy Adult",
+        healthyAdultSub: "Higher heat tolerance",
+        pregnant: "Pregnant",
+        pregnantSub: "Lower heat tolerance - extra care needed",
+        elderly: "Elderly (65+)",
+        elderlySub: "Lower heat tolerance - extra care needed",
+        preExisting: "Pre-existing Condition",
+        preExistingSub: "Lower heat tolerance - extra care needed",
+        whatWork: "What work are you planning?",
+        generalWork: "General outdoor work",
+        pesticideSpraying: "Pesticide spraying",
+        pesticideSub: "Wind conditions will be checked for spray drift",
+        checkSafety: "Check Safety",
+        checkingLocation: "Checking your location...",
+        gettingWeather: "Getting weather data...",
+        calculatingSafety: "Calculating safe working time...",
+        safe: "SAFE",
+        safeSubtitle: "Conditions are within safe limits",
+        caution: "CAUTION",
+        cautionSubtitle: "Take extra precautions",
+        unsafe: "UNSAFE",
+        unsafeSubtitle: "Avoid outdoor work",
+        safeWindow: "Safe Working Window",
+        recommendedWindow: "Recommended",
+        noSafeWindow: "No safe window available. Stay indoors.",
+        whySeeingThis: "Why am I seeing this?",
+        recommendation: "Recommendation",
+        recSafe: "Outdoor work is safer during the recommended window. Stay hydrated.",
+        recCaution: "Take extra precautions. Take frequent breaks in shade. Drink water every 20 minutes.",
+        recUnsafe: "Avoid outdoor work now. Risk of heat stress or chemical exposure.",
+        recPesticideUnsafe: "Wind too strong for spraying. Pesticide drift risk.",
+        unsafeConditions: "Unsafe conditions detected",
+        alertCanBeSent: "An alert can be sent to the ASHA health worker for review.",
+        sendAlert: "Send Alert to ASHA Worker",
+        alertSent: "Alert sent for ASHA review.",
+        alertAutoSent: "Alert has been automatically sent for ASHA review.",
+        alertExists: "An active alert already exists.",
+        readAloud: "Read aloud",
+        offlineBanner: "You are offline. Showing last checked result.",
+        lastChecked: "Last checked",
+        backOnline: "Back online",
+        minsAgo: "minutes ago",
+        temperature: "Temperature",
+        humidity: "Humidity",
+        wind: "Wind",
+        locBhubaneswar: "Bhubaneswar, Odisha",
+        locJaisalmer: "Jaisalmer, Rajasthan",
+        locVaranasi: "Varanasi, UP",
+        locNagpur: "Nagpur, Maharashtra",
+        locChennai: "Chennai, Tamil Nadu"
+      },
+      hi: {
+        brand: "जीवनसेतु",
+        ashaDashboard: "आशा डैशबोर्ड",
+        demoMode: "डेमो मोड",
+        goodMorning: "सुप्रभात",
+        goodAfternoon: "नमस्ते",
+        goodEvening: "शुभ संध्या",
+        yourName: "आपका नाम",
+        yourLocation: "आपका स्थान",
+        useMyLocation: "मेरा स्थान उपयोग करें",
+        selectHealthProfile: "अपना स्वास्थ्य प्रोफ़ाइल चुनें",
+        healthProfileSubtitle: "इससे हमें आपको व्यक्तिगत सुरक्षा सलाह देने में मदद मिलती है",
+        healthyAdult: "स्वस्थ वयस्क",
+        healthyAdultSub: "अधिक गर्मी सहनशीलता",
+        pregnant: "गर्भवती",
+        pregnantSub: "कम गर्मी सहनशीलता - अतिरिक्त देखभाल की आवश्यकता",
+        elderly: "बुज़ुर्ग (65+)",
+        elderlySub: "कम गर्मी सहनशीलता - अतिरिक्त देखभाल की आवश्यकता",
+        preExisting: "पहले से बीमारी",
+        preExistingSub: "कम गर्मी सहनशीलता - अतिरिक्त देखभाल की आवश्यकता",
+        whatWork: "आप क्या काम करने वाले हैं?",
+        generalWork: "सामान्य बाहरी काम",
+        pesticideSpraying: "कीटनाशक छिड़काव",
+        pesticideSub: "हवा की स्थिति की जाँच की जाएगी",
+        checkSafety: "सुरक्षा जाँचें",
+        checkingLocation: "आपका स्थान जाँच रहे हैं...",
+        gettingWeather: "मौसम का डेटा प्राप्त कर रहे हैं...",
+        calculatingSafety: "सुरक्षित कार्य समय की गणना कर रहे हैं...",
+        safe: "सुरक्षित",
+        safeSubtitle: "स्थितियाँ सुरक्षित सीमा में हैं",
+        caution: "सावधानी",
+        cautionSubtitle: "अतिरिक्त सावधानी बरतें",
+        unsafe: "असुरक्षित",
+        unsafeSubtitle: "बाहरी काम से बचें",
+        safeWindow: "सुरक्षित कार्य समय",
+        recommendedWindow: "सुझाया गया",
+        noSafeWindow: "कोई सुरक्षित समय नहीं। घर के अंदर रहें।",
+        whySeeingThis: "मुझे यह क्यों दिख रहा है?",
+        recommendation: "सलाह",
+        recSafe: "सुझाए गए समय में बाहरी काम सुरक्षित है। पानी पीते रहें।",
+        recCaution: "अतिरिक्त सावधानी बरतें। छाया में बार-बार आराम करें। हर 20 मिनट में पानी पिएं।",
+        recUnsafe: "अभी बाहरी काम से बचें। गर्मी या रासायनिक जोखिम है।",
+        recPesticideUnsafe: "छिड़काव के लिए हवा बहुत तेज़ है। कीटनाशक फैलने का जोखिम।",
+        unsafeConditions: "असुरक्षित स्थितियां पाई गईं",
+        alertCanBeSent: "ASHA स्वास्थ्य कार्यकर्ता को समीक्षा के लिए अलर्ट भेजा जा सकता है।",
+        sendAlert: "ASHA कार्यकर्ता को अलर्ट भेजें",
+        alertSent: "ASHA समीक्षा के लिए अलर्ट भेजा गया।",
+        alertAutoSent: "ASHA समीक्षा के लिए अलर्ट स्वचालित रूप से भेज दिया गया है।",
+        alertExists: "एक सक्रिय अलर्ट पहले से मौजूद है।",
+        readAloud: "सुनें",
+        offlineBanner: "आप ऑफ़लाइन हैं। अंतिम जाँच परिणाम दिखा रहा है।",
+        lastChecked: "अंतिम जाँच",
+        backOnline: "वापस ऑनलाइन",
+        minsAgo: "मिनट पहले",
+        temperature: "तापमान",
+        humidity: "नमी",
+        wind: "हवा",
+        locBhubaneswar: "भुवनेश्वर, ओडिशा",
+        locJaisalmer: "जैसलमेर, राजस्थान",
+        locVaranasi: "वाराणसी, यूपी",
+        locNagpur: "नागपुर, महाराष्ट्र",
+        locChennai: "चेन्नई, तमिलनाडु"
+      }
+    };
+
+    const presetLocations = [
+      { id: 'bhubaneswar', lat: 20.2961, lon: 85.8245, key: 'locBhubaneswar' },
+      { id: 'jaisalmer', lat: 26.9124, lon: 70.9120, key: 'locJaisalmer' },
+      { id: 'varanasi', lat: 25.3176, lon: 82.9739, key: 'locVaranasi' },
+      { id: 'nagpur', lat: 21.1458, lon: 79.0882, key: 'locNagpur' },
+      { id: 'chennai', lat: 13.0827, lon: 80.2707, key: 'locChennai' }
+    ];
+
+    function App() {
+      const [lang, setLang] = useState('en');
+      const t = (key) => translations[lang][key] || key;
+      const toggleLang = () => setLang(l => l === 'en' ? 'hi' : 'en');
+
+      const [isOnline, setIsOnline] = useState(navigator.onLine);
+      const [wasOffline, setWasOffline] = useState(false);
+      
+      const [showDemo, setShowDemo] = useState(false);
+      
+      const [name, setName] = useState("Farmer");
+      const [location, setLocation] = useState(null);
+      const [profile, setProfile] = useState("healthy_adult");
+      const [activity, setActivity] = useState("general_work");
+      
+      const [isLoading, setIsLoading] = useState(false);
+      const [loadingStep, setLoadingStep] = useState(0);
+      
+      const [result, setResult] = useState(null);
+      const [weather, setWeather] = useState(null);
+      
+      const [alertStatus, setAlertStatus] = useState(null);
+      const [voiceFeedback, setVoiceFeedback] = useState("");
+
+      // Connection monitoring
+      useEffect(() => {
+        const handleOnline = () => {
+          setIsOnline(true);
+          setWasOffline(true);
+          setTimeout(() => setWasOffline(false), 3000);
+        };
+        const handleOffline = () => setIsOnline(false);
+        
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        
+        return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+        };
+      }, []);
+
+      // Load cached result when offline
+      useEffect(() => {
+        if (!isOnline) {
+          const cached = localStorage.getItem('jeevansetu_last_result');
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              setResult(data.result);
+              setWeather(data.weather);
+            } catch (e) {
+              console.error("Failed to parse cached result", e);
+            }
+          }
+        }
+      }, [isOnline]);
+
+      const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) return t('goodMorning');
+        if (hour >= 12 && hour < 17) return t('goodAfternoon');
+        return t('goodEvening');
+      };
+
+      const handleUseLocation = () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude, name: "Current Location" }),
+            (err) => alert("Could not get location. Please select from dropdown.")
+          );
+        }
+      };
+
+      const checkSafety = async (forceDemoRed = false) => {
+        if (!location) {
+          alert("Please select a location");
+          return;
+        }
+
+        setIsLoading(true);
+        setResult(null);
+        setWeather(null);
+        setAlertStatus(null);
+        
+        const loadingSequence = [
+          t('checkingLocation'),
+          t('gettingWeather'),
+          t('calculatingSafety')
+        ];
+        
+        let step = 0;
+        const loaderInterval = setInterval(() => {
+          step++;
+          if (step < 3) setLoadingStep(step);
+        }, 800);
+
+        try {
+          const params = new URLSearchParams({
+            lat: location.lat,
+            lon: location.lon,
+            profile,
+            activity,
+            farmer_name: name
+          });
+          
+          if (forceDemoRed) params.append('demo_red', 'true');
+
+          const response = await fetch(`/api/safe-window?${params.toString()}`);
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || `Server error (${response.status})`);
+          }
+          const data = await response.json();
+          
+          // Fetch current weather via backend proxy for display cards
+          try {
+            const weatherRes = await fetch(`/api/current-weather?lat=${location.lat}&lon=${location.lon}`);
+            if (weatherRes.ok) {
+              const weatherData = await weatherRes.json();
+              setWeather({
+                temperature_2m: weatherData.temperature,
+                relative_humidity_2m: weatherData.humidity,
+                wind_speed_10m: weatherData.wind_speed
+              });
+            }
+          } catch (wErr) {
+            console.warn("Weather display data unavailable", wErr);
+          }
+          
+          setResult(data);
+          
+          if (data.circuit_breaker && data.circuit_breaker.triggered) {
+            setAlertStatus('auto');
+          } else if (data.circuit_breaker && !data.circuit_breaker.triggered) {
+            setAlertStatus('duplicate');
+          }
+
+          if (isOnline) {
+            localStorage.setItem('jeevansetu_last_result', JSON.stringify({
+              result: data,
+              weather: weather,
+              timestamp: Date.now()
+            }));
+          }
+          
+        } catch (error) {
+          console.error("Error fetching safety window:", error);
+          alert(error.message || "Cannot connect to JeevanSetu server. Please check your connection and try again.");
+        } finally {
+          clearInterval(loaderInterval);
+          setLoadingStep(0);
+          setIsLoading(false);
+        }
+      };
+
+      const sendManualAlert = async () => {
+        try {
+          const firstRedReason = result?.hourly?.find(h => h.zone === 'RED')?.reason || "Unsafe conditions detected";
+          const res = await fetch(`/api/alert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              farmer_name: name,
+              farmer_id: name.toLowerCase().replace(/\s+/g, '_'),
+              lat: location.lat,
+              lon: location.lon,
+              profile: profile,
+              activity: activity,
+              risk_level: "RED",
+              reason: firstRedReason
+            })
+          });
+          if (res.ok) {
+            setAlertStatus('manual_success');
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            alert(errData.detail || "Failed to create alert");
+          }
+        } catch (e) {
+          alert("Cannot connect to server. Please try again.");
+        }
+      };
+
+      const runDemo = (type) => {
+        if (type === 'safe') {
+          setLocation(presetLocations[0]);
+          setProfile('healthy_adult');
+          setActivity('general_work');
+          setTimeout(() => checkSafety(), 100);
+        } else if (type === 'caution') {
+          setLocation(presetLocations[1]); // Jaisalmer
+          setProfile('elderly');
+          setActivity('general_work');
+          setTimeout(() => checkSafety(), 100);
+        } else if (type === 'red_heat') {
+          setLocation(presetLocations[2]);
+          setProfile('pre_existing');
+          setActivity('general_work');
+          setTimeout(() => checkSafety(true), 100);
+        } else if (type === 'red_wind') {
+          setLocation(presetLocations[3]);
+          setProfile('healthy_adult');
+          setActivity('pesticide_spraying');
+          setTimeout(() => checkSafety(true), 100);
+        } else if (type === 'asha_flow') {
+          setLocation(presetLocations[4]);
+          setProfile('pre_existing');
+          setActivity('pesticide_spraying');
+          setTimeout(() => checkSafety(true), 100);
+        }
+      };
+
+      const speakResult = () => {
+        if (!result) return;
+        const text = result.overall_status === 'RED' ? t('recUnsafe') : result.overall_status === 'YELLOW' ? t('recCaution') : t('recSafe');
+        const synth = window.speechSynthesis;
+        const utterThis = new SpeechSynthesisUtterance(text);
+        if (lang === 'hi') {
+          const voices = synth.getVoices();
+          const hiVoice = voices.find(v => v.lang.includes('hi'));
+          if (hiVoice) utterThis.voice = hiVoice;
+        }
+        synth.speak(utterThis);
+      };
+
+      // Voice recognition setup
+      const startVoiceInput = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert("Voice input not supported in this browser.");
+          return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = lang === 'en' ? 'en-US' : 'hi-IN';
+        recognition.onresult = (event) => {
+          const text = event.results[0][0].transcript.toLowerCase();
+          setVoiceFeedback(`Recognized: "${text}"`);
+          setTimeout(() => setVoiceFeedback(""), 3000);
+          
+          if (text.includes('check') || text.includes('सुरक्षा') || text.includes('jaanch')) {
+             if (location) checkSafety();
+          } else if (text.includes('pesticide') || text.includes('कीटनाशक')) {
+             setActivity('pesticide_spraying');
+          } else if (text.includes('pregnant') || text.includes('गर्भवती')) {
+             setProfile('pregnant');
+          }
+        };
+        recognition.start();
+      };
+
+      // UI Helpers
+      const isRed = result?.overall_status === 'RED' || result?.hourly?.some(h => h.zone === 'RED');
+      const isYellow = !isRed && (result?.overall_status === 'YELLOW' || result?.hourly?.some(h => h.zone === 'YELLOW'));
+      const isGreen = !isRed && !isYellow;
+
+      const statusColors = isRed ? { bg: 'bg-js-danger-bg', border: 'border-js-danger', text: 'text-js-danger', icon: '🔴', label: t('unsafe'), sub: t('unsafeSubtitle') } 
+                         : isYellow ? { bg: 'bg-js-caution-bg', border: 'border-js-caution', text: 'text-js-caution', icon: '⚠️', label: t('caution'), sub: t('cautionSubtitle') }
+                         : { bg: 'bg-js-safe-bg', border: 'border-js-safe', text: 'text-js-safe', icon: '✅', label: t('safe'), sub: t('safeSubtitle') };
+
+      const getCachedTimeStr = () => {
+        const cached = localStorage.getItem('jeevansetu_last_result');
+        if (cached) {
+          const data = JSON.parse(cached);
+          const mins = Math.round((Date.now() - data.timestamp) / 60000);
+          return `${mins} ${t('minsAgo')}`;
+        }
+        return '';
+      };
+
+      return (
+        <div className="min-h-screen pb-20 max-w-md mx-auto bg-js-bg shadow-lg border-x border-js-border relative overflow-x-hidden">
+          
+          {/* Top Nav */}
+          <header className="bg-white border-b border-js-border p-4 sticky top-0 z-20 flex justify-between items-center shadow-sm">
+            <div className="flex items-center space-x-2">
+              <span className="text-js-primary font-bold text-xl">{t('brand')}</span>
+              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button onClick={() => setShowDemo(!showDemo)} className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600 font-medium">{t('demoMode')}</button>
+              <a href="/frontend/asha.html" className="text-xs text-js-primary underline">{t('ashaDashboard')}</a>
+              <button onClick={toggleLang} className="border border-js-primary text-js-primary px-2 py-1 rounded text-sm font-semibold">
+                {lang === 'en' ? 'हिं' : 'EN'}
+              </button>
+            </div>
+          </header>
+
+          {/* Offline / Online Banners */}
+          {!isOnline && (
+            <div className="bg-js-caution-bg text-js-caution p-2 text-center text-sm font-medium border-b border-js-caution flex justify-center items-center space-x-2">
+              <span>⚠️</span><span>{t('offlineBanner')} {getCachedTimeStr() && `(${t('lastChecked')}: ${getCachedTimeStr()})`}</span>
+            </div>
+          )}
+          {wasOffline && isOnline && (
+            <div className="bg-js-safe-bg text-js-safe p-2 text-center text-sm font-medium border-b border-js-safe">
+              ✅ {t('backOnline')}
+            </div>
+          )}
+
+          {/* Demo Panel */}
+          {showDemo && (
+            <div className="bg-gray-800 text-white p-4 text-sm space-y-2">
+              <div className="font-bold border-b border-gray-600 pb-2 mb-2">DEMO SCENARIOS</div>
+              <button onClick={() => runDemo('safe')} className="block w-full text-left p-2 hover:bg-gray-700 rounded">🟢 Safe conditions (Bhubaneswar)</button>
+              <button onClick={() => runDemo('caution')} className="block w-full text-left p-2 hover:bg-gray-700 rounded">🟡 Caution (Jaisalmer)</button>
+              <button onClick={() => runDemo('red_heat')} className="block w-full text-left p-2 hover:bg-gray-700 rounded">🔴 Extreme heat (Force RED)</button>
+              <button onClick={() => runDemo('red_wind')} className="block w-full text-left p-2 hover:bg-gray-700 rounded">🔴 Pesticide + wind (Force RED)</button>
+              <button onClick={() => runDemo('asha_flow')} className="block w-full text-left p-2 hover:bg-gray-700 rounded">🔴→ASHA Full flow (Force auto-alert)</button>
+            </div>
+          )}
+
+          {/* Main Content */}
+          <main className="p-4 space-y-6">
+            
+            {/* Greeting & Name */}
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-gray-900">{getGreeting()},</h1>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('yourName')}
+                className="bg-transparent text-xl text-gray-600 outline-none border-b border-transparent focus:border-js-border w-full pb-1"
+              />
+            </div>
+
+            {/* Location Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-js-border p-4 space-y-3">
+              <h2 className="font-semibold text-gray-800">{t('yourLocation')}</h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleUseLocation}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-sm font-medium transition"
+                >
+                  <span>📍</span>
+                  <span>{t('useMyLocation')}</span>
+                </button>
+              </div>
+              <div className="relative">
+                <select 
+                  className="w-full p-3 rounded-lg border border-js-border bg-gray-50 text-gray-800 appearance-none"
+                  value={location?.id || ''}
+                  onChange={(e) => {
+                    const loc = presetLocations.find(l => l.id === e.target.value);
+                    if(loc) setLocation(loc);
+                  }}
+                >
+                  <option value="" disabled>Select from presets...</option>
+                  {presetLocations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{t(loc.key)}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-3 pointer-events-none text-gray-500">▼</div>
+              </div>
+              {location && location.lat && (
+                <div className="text-xs text-gray-500 text-right">
+                  {location.lat.toFixed(4)}, {location.lon.toFixed(4)}
+                </div>
+              )}
+            </div>
+
+            {/* Profile Selection */}
+            <div className="space-y-3">
+              <div>
+                <h2 className="font-semibold text-gray-800 text-lg">{t('selectHealthProfile')}</h2>
+                <p className="text-sm text-gray-500">{t('healthProfileSubtitle')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'healthy_adult', icon: '💪', title: t('healthyAdult'), sub: t('healthyAdultSub') },
+                  { id: 'pregnant', icon: '🤰', title: t('pregnant'), sub: t('pregnantSub') },
+                  { id: 'elderly', icon: '👴', title: t('elderly'), sub: t('elderlySub') },
+                  { id: 'pre_existing', icon: '❤️🩹', title: t('preExisting'), sub: t('preExistingSub') }
+                ].map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => setProfile(p.id)}
+                    className={`p-3 rounded-xl border text-left transition ${profile === p.id ? 'border-js-primary ring-2 ring-js-primary bg-js-safe-bg/30' : 'border-js-border bg-white'}`}
+                  >
+                    <div className="text-2xl mb-1">{p.icon}</div>
+                    <div className="font-medium text-gray-900 text-sm leading-tight">{p.title}</div>
+                    <div className="text-[10px] text-gray-500 mt-1 leading-tight">{p.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Activity Selection */}
+            <div className="space-y-3">
+              <h2 className="font-semibold text-gray-800 text-lg">{t('whatWork')}</h2>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => setActivity('general_work')}
+                  className={`w-full p-4 rounded-xl border text-left flex items-center space-x-3 transition ${activity === 'general_work' ? 'border-js-primary ring-2 ring-js-primary bg-js-safe-bg/30' : 'border-js-border bg-white'}`}
+                >
+                  <span className="text-2xl">🌾</span>
+                  <div>
+                    <div className="font-medium text-gray-900">{t('generalWork')}</div>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setActivity('pesticide_spraying')}
+                  className={`w-full p-4 rounded-xl border text-left flex items-center space-x-3 transition ${activity === 'pesticide_spraying' ? 'border-js-primary ring-2 ring-js-primary bg-js-safe-bg/30' : 'border-js-border bg-white'}`}
+                >
+                  <span className="text-2xl">🧪</span>
+                  <div>
+                    <div className="font-medium text-gray-900">{t('pesticideSpraying')}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{t('pesticideSub')}</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Check Button */}
+            {!result && (
+              <button 
+                onClick={() => checkSafety()}
+                disabled={!location || isLoading}
+                className={`w-full min-h-[56px] rounded-xl text-lg font-bold text-white shadow-md transition ${!location || isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-js-primary active:scale-[0.98]'}`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>
+                      {loadingStep === 0 ? t('checkingLocation') : loadingStep === 1 ? t('gettingWeather') : t('calculatingSafety')}
+                    </span>
+                  </div>
+                ) : (
+                  t('checkSafety')
+                )}
+              </button>
+            )}
+
+            {/* RESULTS SECTION */}
+            {result && (
+              <div className="space-y-6 animate-fade-in mt-6">
+                <hr className="border-js-border border-dashed" />
+                
+                {/* 9a. Status Badge */}
+                <div className={`rounded-2xl p-6 border-2 text-center shadow-sm ${statusColors.bg} ${statusColors.border}`}>
+                  <div className="text-6xl mb-3">{statusColors.icon}</div>
+                  <h2 className={`text-3xl font-black mb-1 ${statusColors.text}`}>{statusColors.label}</h2>
+                  <p className={`font-medium ${statusColors.text} opacity-90`}>{statusColors.sub}</p>
+                  
+                  <button onClick={speakResult} className="mt-4 mx-auto flex items-center space-x-2 bg-white/50 px-4 py-2 rounded-full text-sm font-semibold hover:bg-white/80 transition text-gray-800">
+                    <span>🔊</span> <span>{t('readAloud')}</span>
+                  </button>
+                </div>
+
+                {/* 9b. Weather Cards */}
+                {weather && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+                      <div className="text-xl mb-1">🌡️</div>
+                      <div className="text-xs text-gray-500 font-medium">{t('temperature')}</div>
+                      <div className="font-bold text-gray-900">{weather.temperature_2m}°C</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+                      <div className="text-xl mb-1">💧</div>
+                      <div className="text-xs text-gray-500 font-medium">{t('humidity')}</div>
+                      <div className="font-bold text-gray-900">{weather.relative_humidity_2m}%</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-js-border text-center shadow-sm">
+                      <div className="text-xl mb-1">💨</div>
+                      <div className="text-xs text-gray-500 font-medium">{t('wind')}</div>
+                      <div className="font-bold text-gray-900">{weather.wind_speed_10m} km/h</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 9c. Safe Window Timeline */}
+                <div className="bg-white p-4 rounded-xl border border-js-border shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-3">{t('safeWindow')}</h3>
+                  
+                  {result.hourly && result.hourly.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Visual Bar */}
+                      <div className="h-6 flex rounded-full overflow-hidden border border-gray-200">
+                        {result.hourly.map((h, i) => {
+                          const bg = h.zone === 'RED' ? 'bg-js-danger' : h.zone === 'YELLOW' ? 'bg-js-caution' : 'bg-js-safe';
+                          return <div key={i} className={`flex-1 ${bg} border-r border-white/20 last:border-0`} title={`${h.hour_label}: ${h.zone}`}></div>;
+                        })}
+                      </div>
+                      
+                      {/* Labels */}
+                      <div className="flex justify-between text-xs text-gray-500 font-medium px-1">
+                        <span>{result.hourly[0].hour_label}</span>
+                        <span>{result.hourly[Math.floor(result.hourly.length/2)]?.hour_label}</span>
+                        <span>{result.hourly[result.hourly.length-1].hour_label}</span>
+                      </div>
+                      
+                      {/* Summary Text */}
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm font-semibold text-gray-800 text-center">
+                        {isRed ? t('noSafeWindow') : `${t('recommendedWindow')}: ${result.window_summary}`}
+                      </div>
+                    </div>
+                  ) : (
+                     <div className="text-sm text-gray-500 italic">No hourly data available.</div>
+                  )}
+                </div>
+
+                {/* 9e. Recommendation Card */}
+                <div className="bg-white p-4 rounded-xl border border-js-border shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-2">{t('recommendation')}</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {activity === 'pesticide_spraying' && isRed 
+                      ? t('recPesticideUnsafe')
+                      : isRed ? t('recUnsafe')
+                      : isYellow ? t('recCaution')
+                      : t('recSafe')}
+                  </p>
+                </div>
+
+                {/* 9f. Alert Creation (RED only) */}
+                {isRed && (
+                  <div className="bg-js-danger-bg p-4 rounded-xl border border-js-danger shadow-sm space-y-3">
+                    <h3 className="font-bold text-js-danger flex items-center space-x-2">
+                      <span>⚠️</span> <span>{t('unsafeConditions')}</span>
+                    </h3>
+                    <p className="text-sm text-js-danger/90">
+                      {t('alertCanBeSent')}
+                    </p>
+                    
+                    {alertStatus === 'auto' ? (
+                      <div className="bg-white p-3 rounded-lg text-sm font-semibold text-green-700 border border-green-200">
+                        ✅ {t('alertAutoSent')}
+                      </div>
+                    ) : alertStatus === 'duplicate' ? (
+                      <div className="bg-white p-3 rounded-lg text-sm font-semibold text-blue-700 border border-blue-200">
+                        ℹ️ {t('alertExists')}
+                      </div>
+                    ) : alertStatus === 'manual_success' ? (
+                      <div className="bg-white p-3 rounded-lg text-sm font-semibold text-green-700 border border-green-200">
+                        ✅ {t('alertSent')}
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={sendManualAlert}
+                        className="w-full bg-js-danger text-white py-3 rounded-lg font-semibold text-sm active:scale-95 transition"
+                      >
+                        {t('sendAlert')}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 9d. Why Section */}
+                <details className="bg-white rounded-xl border border-js-border shadow-sm group">
+                  <summary className="font-semibold text-gray-800 p-4 cursor-pointer select-none outline-none group-open:border-b border-js-border">
+                    {t('whySeeingThis')}
+                  </summary>
+                  <div className="p-4 space-y-3">
+                    {result.hourly?.map((h, i) => (
+                      <div key={i} className="flex space-x-3 items-start text-sm">
+                        <div className="mt-0.5">
+                          {h.zone === 'RED' ? '❌' : h.zone === 'YELLOW' ? '⚠️' : '✅'}
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-700">{h.hour_label}</span>
+                          <p className="text-gray-600 mt-0.5">{h.reason}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+
+                <button 
+                  onClick={() => {setResult(null); window.scrollTo({top: 0, behavior: 'smooth'});}}
+                  className="w-full py-4 text-js-primary font-bold bg-white border border-js-primary rounded-xl"
+                >
+                  Check Again / नई जाँच
+                </button>
+
+              </div>
+            )}
+            
+          </main>
+
+          {/* 11. Voice Input Floating Button */}
+          {window.SpeechRecognition || window.webkitSpeechRecognition ? (
+            <button 
+              onClick={startVoiceInput}
+              className="fixed bottom-6 right-6 w-14 h-14 bg-js-primary text-white rounded-full shadow-xl flex items-center justify-center text-2xl active:scale-90 transition z-50 border-2 border-white"
+              title="Voice Input"
+            >
+              🎤
+            </button>
+          ) : null}
+
+          {/* Voice Feedback Toast */}
+          {voiceFeedback && (
+            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full text-sm shadow-lg z-50 animate-fade-in">
+              {voiceFeedback}
+            </div>
+          )}
+
+          <style dangerouslySetInnerHTML={{__html: `
+            .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+          `}} />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
