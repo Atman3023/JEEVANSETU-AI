@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Literal, Optional
@@ -27,6 +31,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Serve frontend static files ────────────────────────────
+_frontend_dir = Path(__file__).resolve().parent / "frontend"
+if _frontend_dir.is_dir():
+    app.mount("/frontend", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+
 
 # ─────────────────────────────────────────────────────────────
 # Existing endpoints (preserved)
@@ -39,7 +48,59 @@ async def safe_window(
     profile: Literal["healthy_adult", "pregnant", "elderly", "pre_existing"] = "healthy_adult",
     activity: Literal["general_work", "pesticide_spraying"] = "general_work",
     farmer_name: str = "Farmer",
+    demo_red: bool = False,
 ):
+    # ─── DEMO MODE: deterministic RED for Circuit Breaker testing ───
+    if demo_red:
+        demo_reason = (
+            "DEMO RED: simulated unsafe conditions for Circuit Breaker testing."
+        )
+        result = {
+            "demo_mode": True,
+            "profile": profile,
+            "activity": activity,
+            "farmer_name": farmer_name,
+            "location": {"lat": lat, "lon": lon},
+            "hourly": [
+                {
+                    "hour_label": f"{h:02d}:00",
+                    "zone": "RED",
+                    "reason": demo_reason,
+                }
+                for h in range(5, 11)
+            ],
+            "safe_window_hours": [],
+            "window_summary": "No safe window - DEMO RED active",
+            "first_red_hour": "05:00",
+        }
+
+        # Circuit Breaker: auto-create alert (with duplicate protection)
+        if not has_active_alert(farmer_name, activity, lat, lon):
+            alert = create_alert(
+                farmer_name=farmer_name,
+                farmer_id=farmer_name.lower().replace(" ", "_"),
+                lat=lat,
+                lon=lon,
+                profile=profile,
+                activity=activity,
+                risk_level="RED",
+                reason=demo_reason,
+            )
+            result["circuit_breaker"] = {
+                "triggered": True,
+                "alert_id": alert["alert_id"],
+                "status": alert["status"],
+                "message": "DEMO RED risk detected. Alert created for ASHA review.",
+            }
+        else:
+            result["circuit_breaker"] = {
+                "triggered": False,
+                "message": "Active alert already exists for this farmer/activity/location.",
+            }
+
+        return result
+
+    # ─── REAL MODE: live weather → rule engine (unchanged) ──────────
     try:
         readings = await get_morning_readings(lat, lon)
     except Exception:
@@ -197,6 +258,114 @@ async def resolve_alert(alert_id: str, body: Optional[TransitionIn] = None):
     return {"ok": True, "alert": alert}
 
 
+@app.get("/api/current-weather")
+async def current_weather(lat: float, lon: float):
+    """Proxy current weather from Open-Meteo for frontend display cards."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": lat,
+                    "longitude": lon,
+                    "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+                    "timezone": "Asia/Kolkata",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        current = data.get("current", {})
+        return {
+            "temperature": current.get("temperature_2m"),
+            "humidity": current.get("relative_humidity_2m"),
+            "wind_speed": current.get("wind_speed_10m"),
+        }
+    except Exception:
+        raise HTTPException(status_code=502, detail="Weather service unavailable")
+
+
+@app.get("/api/demo-scenarios")
+async def demo_scenarios():
+    """Returns pre-configured demo scenarios for the frontend demo mode."""
+    return {
+        "scenarios": [
+            {
+                "id": "safe",
+                "label": "Safe conditions",
+                "label_hi": "सुरक्षित स्थिति",
+                "icon": "🟢",
+                "lat": 20.2961,
+                "lon": 85.8245,
+                "profile": "healthy_adult",
+                "activity": "general_work",
+                "farmer_name": "Ramesh Kumar",
+                "demo_red": False,
+                "description": "Normal weather, healthy adult, general work",
+            },
+            {
+                "id": "caution",
+                "label": "Approaching threshold",
+                "label_hi": "सावधानी सीमा",
+                "icon": "🟡",
+                "lat": 26.9124,
+                "lon": 70.9120,
+                "profile": "elderly",
+                "activity": "general_work",
+                "farmer_name": "Suresh Patel",
+                "demo_red": False,
+                "description": "Hot location, elderly profile (lower threshold)",
+            },
+            {
+                "id": "extreme_heat",
+                "label": "Extreme heat",
+                "label_hi": "अत्यधिक गर्मी",
+                "icon": "🔴",
+                "lat": 26.9124,
+                "lon": 70.9120,
+                "profile": "pre_existing",
+                "activity": "general_work",
+                "farmer_name": "Rajesh Kumar",
+                "demo_red": True,
+                "description": "Simulated extreme heat for pre-existing condition",
+            },
+            {
+                "id": "pesticide_wind",
+                "label": "Pesticide + high wind",
+                "label_hi": "कीटनाशक + तेज़ हवा",
+                "icon": "🔴",
+                "lat": 21.1458,
+                "lon": 79.0882,
+                "profile": "healthy_adult",
+                "activity": "pesticide_spraying",
+                "farmer_name": "Sita Devi",
+                "demo_red": True,
+                "description": "Simulated high wind during pesticide spraying",
+            },
+            {
+                "id": "circuit_breaker",
+                "label": "Full ASHA workflow",
+                "label_hi": "पूर्ण ASHA कार्यप्रवाह",
+                "icon": "🔴→👩‍⚕️",
+                "lat": 25.3176,
+                "lon": 82.9739,
+                "profile": "pregnant",
+                "activity": "general_work",
+                "farmer_name": "Priya Sharma",
+                "demo_red": True,
+                "description": "RED → Alert → ASHA validates → Contact → Resolve",
+            },
+        ]
+    }
+
+
 @app.get("/")
 async def root():
+    if _frontend_dir.is_dir():
+        return RedirectResponse(url="/frontend/farmer.html")
+    return {"status": "JeevanSetu AI backend running"}
+
+
+@app.get("/api/health")
+async def health():
     return {"status": "JeevanSetu AI backend running"}
